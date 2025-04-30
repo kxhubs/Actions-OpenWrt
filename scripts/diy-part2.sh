@@ -11,11 +11,11 @@
 #
 
 #默认主题
-WRT_THEME: alpha
+WRT_THEME=alpha
 #默认主机名
-WRT_NAME: Kxhubs
+WRT_NAME=Kxhubs
 #默认地址
-WRT_IP: 192.168.1.2
+WRT_IP=192.168.1.2
 
 WRT_DATE=$(TZ=UTC-8 date +"%y.%m.%d_%H.%M.%S")
 WRT_MARK=$(echo $GITHUB_REPOSITORY | cut -d '/' -f 1)
