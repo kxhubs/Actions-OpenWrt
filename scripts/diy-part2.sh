@@ -18,7 +18,7 @@ WRT_NAME=Kxhubs
 WRT_IP=192.168.1.2
 
 WRT_DATE=$(TZ=UTC-8 date +"%y.%m.%d_%H.%M.%S")
-WRT_MARK=$(echo $GITHUB_REPOSITORY | cut -d '/' -f 1)
+WRT_MARK=Kxhubs
 CFG_FILE="./package/base-files/files/bin/config_generate"
 
 #修改默认主题
