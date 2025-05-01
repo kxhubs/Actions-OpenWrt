@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 配置变量：需要添加的插件文件夹名称
-PLUGINS="luci-app-adguardhome nikki luci-app-nikki luci-theme-design luci-theme-ifit luci-theme-kucat"
+PLUGINS="luci-app-adguardhome nikki luci-app-nikki"
 
 # 基础目录
 CUSTOM_FEED_DIR="package/custom"
