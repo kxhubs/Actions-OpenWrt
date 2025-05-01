@@ -16,7 +16,17 @@
 # Add a feed source
 #echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
 #echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
-echo 'src-git infinityfreedomng https://github.com/xiaoqingfengATGH/luci-theme-infinityfreedom.git' >>feeds.conf.default
-echo 'src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git' >>feeds.conf.default
 
-git clone https://github.com/rufengsuixing/luci-app-adguardhome package/luci-app-adguardhome
+# 额外编译的插件
+package="luci-app-adguardhome luci-app-alpha-config luci-app-nikki luci-theme-alpha luci-theme-design luci-theme-ifit luci-theme-kucat"
+
+git clone https://github.com/kenzok8/small-package.git -b main --single-branch --depth=1 --filter=blob:none --sparse small-package-temp
+cd small-package-temp
+git sparse-checkout init --cone
+git sparse-checkout set $package
+cd ..
+rm -f small-package-temp/LICENSE  small-package-temp/README.md
+cp -r small-package-temp/* package/
+rm -rf small-package-temp
+
+
