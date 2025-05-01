@@ -20,5 +20,3 @@ echo 'src-git infinityfreedomng https://github.com/xiaoqingfengATGH/luci-theme-i
 echo 'src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git' >>feeds.conf.default
 
 git clone https://github.com/rufengsuixing/luci-app-adguardhome package/luci-app-adguardhome
-git clone https://github.com/derisamedia/luci-theme-alpha package/luci-theme-alpha
-git clone https://github.com/derisamedia/luci-app-alpha-config package/luci-app-alpha-config
