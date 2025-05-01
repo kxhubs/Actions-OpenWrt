@@ -11,7 +11,7 @@
 #
 
 #默认主题
-WRT_THEME=infinityfreedomng
+WRT_THEME=design
 #默认主机名
 WRT_NAME=Kxhubs
 #默认地址
