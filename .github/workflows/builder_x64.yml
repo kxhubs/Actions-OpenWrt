@@ -12,7 +12,6 @@ name: OpenWrt x86_64 Builder
 
 on:
   schedule:
-    - cron: 2 */5 * * *
   push:
     tags:
     - 'v*'
