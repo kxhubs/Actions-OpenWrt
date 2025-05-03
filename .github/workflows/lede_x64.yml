@@ -124,8 +124,10 @@ jobs:
         rm -rf feeds/packages/lang/golang
         git clone https://github.com/kenzok8/golang feeds/packages/lang/golang
         rm -rf feeds/luci/applications/luci-app-openclash
-        pwf
+        pwd
         ls ../
+        echo '------------'
+        ls
         cp -f ../other/default-settings package/lean/default-settings/files/zzz-default-settings
         cp -f ../other/banner package/base-files/files/etc/banne
         sed -i "s/%D %V, %C/openwrt $(date +'%m.%d') by kenzo/g" package/base-files/files/etc/banner
