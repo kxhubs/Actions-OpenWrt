@@ -108,8 +108,6 @@ jobs:
     - name: Load custom feeds
       run: |
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-        ls
-        ls openwrt
         sed -i '$a src-git smpackage https://github.com/kenzok8/small-package' openwrt/feeds.conf.default
 
     - name: Update feeds
@@ -126,6 +124,8 @@ jobs:
         rm -rf feeds/packages/lang/golang
         git clone https://github.com/kenzok8/golang feeds/packages/lang/golang
         rm -rf feeds/luci/applications/luci-app-openclash
+        pwf
+        ls ../
         cp -f ../other/default-settings package/lean/default-settings/files/zzz-default-settings
         cp -f ../other/banner package/base-files/files/etc/banne
         sed -i "s/%D %V, %C/openwrt $(date +'%m.%d') by kenzo/g" package/base-files/files/etc/banner
