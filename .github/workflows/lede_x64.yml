@@ -28,7 +28,7 @@ env:
   REPO_URL: https://github.com/coolsnowwolf/lede
   REPO_BRANCH: master
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: config/x86-confi
+  CONFIG_FILE: config/lede_x64
   RELEASE_TAG: x64_Lede
   UPLOAD_BIN_DIR: true
   UPLOAD_FIRMWARE: true
@@ -131,7 +131,7 @@ jobs:
         ./scripts/feeds update -a 
         sed -i 's#GO_PKG_TARGET_VARS.*# #g' feeds/packages/utils/v2dat/Makefile 
         ./scripts/feeds install -a
-        cp -f ../config/lede_x64 .config && make defconfig
+        make defconfig
         sed -i 's/CONFIG_BINUTILS_VERSION="2.42"/CONFIG_BINUTILS_VERSION="2.43.1"/' .config
 
     - name: SSH connection to Actions
