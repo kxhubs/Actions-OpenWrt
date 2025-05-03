@@ -108,6 +108,8 @@ jobs:
     - name: Load custom feeds
       run: |
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        ls
+        ls openwrt
         sed -i '$a src-git smpackage https://github.com/kenzok8/small-package' openwrt/feeds.conf.default
 
     - name: Update feeds
