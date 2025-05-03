@@ -125,7 +125,7 @@ jobs:
         git clone https://github.com/kenzok8/golang feeds/packages/lang/golang
         rm -rf feeds/luci/applications/luci-app-openclash
         cp -f $GITHUB_WORKSPACE/other/default-settings package/lean/default-settings/files/zzz-default-settings
-        cp -f $GITHUB_WORKSPACE/other/banner package/base-files/files/etc/banne
+        cp -f $GITHUB_WORKSPACE/other/banner package/base-files/files/etc/banner
         sed -i "s/%D %V, %C/openwrt $(date +'%m.%d') by kenzo/g" package/base-files/files/etc/banner
         sed -i 's/luci-theme-bootstrap/luci-theme-desgin/g' feeds/luci/collections/luci/Makefile
         ./scripts/feeds update -a 
