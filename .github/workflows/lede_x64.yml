@@ -113,9 +113,6 @@ jobs:
     - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a
 
-    - name: Install feeds
-      run: cd openwrt && ./scripts/feeds install -a
-
     - name: Load custom configuration
       run: |
         [ -e files ] && mv files openwrt/files
@@ -126,7 +123,7 @@ jobs:
         rm -rf feeds/luci/applications/luci-app-openclash
         cp -f $GITHUB_WORKSPACE/other/default-settings package/lean/default-settings/files/zzz-default-settings
         cp -f $GITHUB_WORKSPACE/other/banner package/base-files/files/etc/banner
-        sed -i "s/%D %V, %C/openwrt $(date +'%m.%d') by kenzo/g" package/base-files/files/etc/banner
+        sed -i "s/%D %V, %C/openwrt $(date +'%m.%d') by kxhubs/g" package/base-files/files/etc/banner
         sed -i 's/luci-theme-bootstrap/luci-theme-desgin/g' feeds/luci/collections/luci/Makefile
         ./scripts/feeds update -a 
         sed -i 's#GO_PKG_TARGET_VARS.*# #g' feeds/packages/utils/v2dat/Makefile 
