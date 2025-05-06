@@ -58,7 +58,7 @@ FILES=(
     "passwall|/etc/config/passwall|passwall|passwall|0"
     "AdGuardHome.yaml|/etc/AdGuardHome/AdGuardHome.yaml|AdGuardHome|AdGuardHome|0"
     "ddns-go|/etc/config/ddns-go|ddns-go|ddns-go|1"
-	"ddns-go.yaml|/etc/ddns-go/config.yaml|ddns-go|ddns-go|1"
+    "ddns-go.yaml|/etc/ddns-go/config.yaml|ddns-go|ddns-go|1"
     "vlmcsd|/etc/config/vlmcsd|vlmcsd|vlmcsd|1"
 )
 
@@ -79,7 +79,7 @@ for file_info in "${FILES[@]}"; do
     service=$(echo "$file_info" | cut -d'|' -f3)
     
     original_url="${GITHUB_REPO}/${github_file}"
-    proxy_url="${GHPROXY}${original_url}"
+    proxy_url="${GHPROXY}${original_url#https://}"  # 修改代理链接生成方式
     temp_file="${temp_dir}/${github_file}"
     
     log "尝试使用ghproxy加速下载 $github_file"
