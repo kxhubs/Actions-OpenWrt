@@ -33,43 +33,36 @@ config domain-rule
 config server
         option enabled '1'
         option type 'udp'
-        option ip '202.106.195.68'
+        option ip '180.76.76.76'
         option server_group 'cn'
-        option name 'China_Unicom'
-
-config server
-        option enabled '1'
-        option type 'udp'
-        option ip '202.106.46.151'
-        option server_group 'cn'
-        option name 'China_Unicom'
+        option name 'BaiduDNS'
 
 config server
         option enabled '1'
         option name 'AliDNS'
-        option ip 'aliDNS_ip/DNS-query'
+        option ip 'dns.alidns.com/dns-query'
         option type 'https'
         option server_group 'cn'
 
 config server
         option enabled '1'
         option name 'DNSPod'
-        option ip 'doh.pub/DNS-query'
+        option ip 'doh.pub/dns-query'
         option type 'https'
         option server_group 'cn'
 
 config server
         option enabled '1'
         option type 'udp'
-        option ip '123.125.81.6'
+        option ip '114.114.114.114	'
         option server_group 'cn'
-        option name 'DNS派'
+        option name '114DNS'
 
 config server
         option enabled '1'
         option type 'udp'
         option name 'DNS派'
-        option ip '140.207.198.6'
+        option ip '218.30.118.6'
         option server_group 'cn'
 
 config server
@@ -111,11 +104,3 @@ config server
         option server_group 'gfw'
         option exclude_default_group '1'
         option type 'udp'
-
-config server
-        option enabled '1'
-        option type 'udp'
-        option name 'Comodo'
-        option ip '68.20.247.20'
-        option server_group 'gfw'
-        option exclude_default_group '1'
