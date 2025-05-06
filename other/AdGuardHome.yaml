@@ -6,7 +6,7 @@ http:
   session_ttl: 720h
 users:
   - name: admin
-    password: $2y$10$3jqhLDVz/Rx5SrLzg7ZwsuO5I5BrYhitjbjRShtsPUbbsCGfqck1y
+    password: $2y$10$xzmgNn8G97C6Qd4RXXKyFeBwc1H/m1jsb4k6nxxerRO3VQvOV511O
 auth_attempts: 5
 block_auth_min: 15
 http_proxy: ""
@@ -103,10 +103,6 @@ filters:
     name: AdRules AdBlock List Plus
     id: 1696861225
   - enabled: true
-    url: https://raw.githubusercontent.com/Cats-Team/AdRules/main/hosts.txt
-    name: AdRules Hosts
-    id: 1696861226
-  - enabled: true
     url: https://cdn.jsdelivr.net/gh/jdlingyu/ad-wars@master/hosts
     name: 大圣净化 – 针对国内视频网站
     id: 1696861227
@@ -147,30 +143,7 @@ whitelist_filters:
     url: https://cats-team.github.io/AdRules/allow-domains-list.txt
     name: AdRules
     id: 1696861224
-user_rules:
-  - '@@||taobao.com^$important'
-  - '@@||tmall.com^$important'
-  - '@@||jd.com^important'
-  - '@@||kxhubs.com^important'
-  - '@@||flyme.cn^$important'
-  - '@@||meizu.com^$important'
-  - '@@||wl.jd.com^$important'
-  - '@@||flydigi.com^'
-  - '@@||pv.sohu.com^$important'
-  - /googleads.$~script,domain=~googleads.github.io
-  - /pagead/lvz?
-  - '||google.com/pagead/'
-  - '||static.doubleclick.net^$domain=youtube.com'
-  - '||youtube.com/get_midroll_'
-  - '||5hz.org^'
-  - '@@||000714.xyz^'
-  - '@@||blueskyxn.com^'
-  - '||topnewsfeeds.net^'
-  - '||nbryb.com^'
-  - '||superbdolly.com^'
-  - '||salutationcheerlessdemote.com^'
-  - '||buildingdoodlesquare.com^'
-  - '||colonistnobilityheroic.com^'
+user_rules: []
 dhcp:
   enabled: false
   interface_name: ""
