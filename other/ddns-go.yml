@@ -1,0 +1,32 @@
+dnsconf:
+    - name: Hurricane Electric
+      ipv4:
+        enable: true
+        gettype: url
+        url: https://myip.ipip.net, https://ddns.oray.com/checkip, https://ip.3322.net, https://4.ipw.cn, https://v4.yinghualuo.cn/bejson
+        netinterface: br-lan
+        cmd: ""
+        domains:
+      ipv6:
+        enable: false
+        gettype: url
+        url: https://speed.neu6.edu.cn/getIP.php, https://v6.ident.me, https://6.ipw.cn, https://v6.yinghualuo.cn/bejson
+        netinterface: ""
+        cmd: ""
+        ipv6reg: ""
+        domains:
+            - ""
+      dns:
+        name: callback
+        id: https://dyn.dns.he.net/nic/update?hostname=#{domain}&password=password&myip=#{ip}
+        secret: ""
+      ttl: "60"
+user:
+    username: admin
+    password: $2a$10$bUG2J8BdyB5TU7CROiJIBesRvNRxBtiqxYafUSGmhhlcWhZZBlz7q
+webhook:
+    webhookurl: ""
+    webhookrequestbody: ""
+    webhookheaders: ""
+notallowwanaccess: true
+lang: zh
