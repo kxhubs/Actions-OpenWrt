@@ -1,0 +1,121 @@
+
+config smartdns
+        option enabled '1'
+        option port '5334'
+        option auto_set_dnsmasq '0'
+        option tcp_server '1'
+        option ipv6_server '0'
+        option bind_device '1'
+        option dualstack_ip_selection '1'
+        option prefetch_domain '1'
+        option serve_expired '1'
+        option cache_size '8600'
+        option cache_persist '1'
+        option resolve_local_hostnames '1'
+        option force_https_soa '0'
+        option rr_ttl_min '300'
+        option rr_ttl_max '3600'
+        option seconddns_tcp_server '1'
+        option server_name 'cn'
+        option seconddns_enabled '1'
+        option seconddns_port '5335'
+        option seconddns_server_group 'gfw'
+        option seconddns_no_speed_check '1'
+        option seconddns_no_rule_addr '1'
+        option seconddns_no_dualstack_selection '1'
+        option seconddns_no_cache '1'
+        option old_port '5334'
+        option old_enabled '1'
+        option old_auto_set_dnsmasq '0'
+
+config domain-rule
+
+config server
+        option enabled '1'
+        option type 'udp'
+        option ip '202.106.195.68'
+        option server_group 'cn'
+        option name 'China_Unicom'
+
+config server
+        option enabled '1'
+        option type 'udp'
+        option ip '202.106.46.151'
+        option server_group 'cn'
+        option name 'China_Unicom'
+
+config server
+        option enabled '1'
+        option name 'AliDNS'
+        option ip 'aliDNS_ip/DNS-query'
+        option type 'https'
+        option server_group 'cn'
+
+config server
+        option enabled '1'
+        option name 'DNSPod'
+        option ip 'doh.pub/DNS-query'
+        option type 'https'
+        option server_group 'cn'
+
+config server
+        option enabled '1'
+        option type 'udp'
+        option ip '123.125.81.6'
+        option server_group 'cn'
+        option name 'DNS派'
+
+config server
+        option enabled '1'
+        option type 'udp'
+        option name 'DNS派'
+        option ip '140.207.198.6'
+        option server_group 'cn'
+
+config server
+        option enabled '1'
+        option name 'Google'
+        option ip 'dns.google/dns-query'
+        option type 'https'
+        option server_group 'gfw'
+        option exclude_default_group '1'
+
+config server
+        option enabled '1'
+        option name 'Cloudflare'
+        option ip '1dot1dot1dot1.cloudflare-dns.com/'
+        option type 'tls'
+        option server_group 'gfw'
+        option exclude_default_group '1'
+
+config server
+        option enabled '1'
+        option name 'Quad9'
+        option ip 'dns.quad9.net/dns-query'
+        option type 'https'
+        option server_group 'gfw'
+        option exclude_default_group '1'
+
+config server
+        option enabled '1'
+        option name 'OpenDNS'
+        option ip '208.67.222.222'
+        option server_group 'gfw'
+        option exclude_default_group '1'
+        option type 'udp'
+
+config server
+        option enabled '1'
+        option name 'OpenDNS'
+        option ip '208.67.220.220'
+        option server_group 'gfw'
+        option exclude_default_group '1'
+        option type 'udp'
+
+config server
+        option enabled '1'
+        option type 'udp'
+        option name 'Comodo'
+        option ip '68.20.247.20'
+        option server_group 'gfw'
+        option exclude_default_group '1'
