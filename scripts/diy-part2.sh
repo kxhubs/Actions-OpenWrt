@@ -13,7 +13,7 @@
 #默认主题
 WRT_THEME=argon
 #默认主机名
-WRT_NAME=Kxhubs
+# WRT_NAME=Kxhubs
 #默认地址
 WRT_IP=192.168.1.2
 
@@ -31,4 +31,4 @@ sed -i "s/192\.168\.[0-9]*\.[0-9]*/$WRT_IP/g" $(find ./feeds/luci/modules/luci-m
 sed -i "s/(\(luciversion || ''\))/(\1) + (' \/ $WRT_MARK-$WRT_DATE')/g" $(find ./feeds/luci/modules/luci-mod-status/ -type f -name "10_system.js")
 
 #修改默认主机名
-sed -i "s/hostname='.*'/hostname='$WRT_NAME'/g" $CFG_FILE
+# sed -i "s/hostname='.*'/hostname='$WRT_NAME'/g" $CFG_FILE
