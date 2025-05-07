@@ -60,6 +60,7 @@ FILES=(
     "ddns-go|/etc/config/ddns-go|ddns-go|ddns-go|1"
     "ddns-go.yaml|/etc/ddns-go/config.yaml|ddns-go|ddns-go|1"
     "vlmcsd|/etc/config/vlmcsd|vlmcsd|vlmcsd|1"
+    "firewall|/etc/config/firewall/|firewall|1"
 )
 
 # 创建临时目录
