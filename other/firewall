@@ -5,7 +5,6 @@ config defaults
         option forward 'ACCEPT'
         option flow_offloading '1'
         option flow_offloading_hw '1'
-        option fullcone '1'
         option drop_invalid '1'
 
 config zone
@@ -137,3 +136,14 @@ config include 'passwall_server'
         option type 'script'
         option path '/var/etc/passwall_server.include'
         option reload '1'
+
+config nat
+        option name 'DNS'
+        option src 'lan'
+        option target 'SNAT'
+        option snat_ip '192.168.0.2'
+        option device 'br-lan'
+        list proto 'tcp'
+        list proto 'udp'
+        option src_port '53'
+        option dest_port '53'
