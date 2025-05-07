@@ -56,7 +56,7 @@ GHPROXY="https://gh-proxy.com/"
 FILES=(
     "smartdns|/etc/config/smartdns|smartdns|smartdns|1"
     "passwall|/etc/config/passwall|passwall|passwall|0"
-    "AdGuardHome.yaml|/etc/AdGuardHome/AdGuardHome.yaml|AdGuardHome|AdGuardHome|0"
+    "AdGuardHome.yaml|/etc/AdGuardHome.yaml|AdGuardHome|AdGuardHome|0"
     "ddns-go|/etc/config/ddns-go|ddns-go|ddns-go|1"
     "ddns-go.yaml|/etc/ddns-go/config.yaml|ddns-go|ddns-go|1"
     "vlmcsd|/etc/config/vlmcsd|vlmcsd|vlmcsd|1"
