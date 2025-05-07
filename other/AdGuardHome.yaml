@@ -83,14 +83,14 @@ tls:
   strict_sni_check: false
 querylog:
   dir_path: ""
-  ignored: ""
+  ignored: []
   interval: 720h
   size_memory: 1000
   enabled: true
   file_enabled: true
 statistics:
   dir_path: ""
-  ignored: ""
+  ignored: []
   interval: 720h
   enabled: true
 filters:
