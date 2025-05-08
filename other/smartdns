@@ -32,75 +32,71 @@ config domain-rule
 
 config server
         option enabled '1'
-        option type 'udp'
-        option ip '180.76.76.76'
-        option server_group 'cn'
-        option name 'BaiduDNS'
-
-config server
-        option enabled '1'
         option name 'AliDNS'
         option ip 'dns.alidns.com/dns-query'
         option type 'https'
         option server_group 'cn'
-
+        option exclude_default_group '1'
+config server
+        option enabled '1'
+        option type 'udp'
+        option ip '180.76.76.76'
+        option server_group 'cn'
+        option name 'BaiduDNS'
+        option exclude_default_group '1'
 config server
         option enabled '1'
         option name 'DNSPod'
         option ip 'doh.pub/dns-query'
         option type 'https'
         option server_group 'cn'
-
+        option exclude_default_group '1'
 config server
         option enabled '1'
         option type 'udp'
-        option ip '114.114.114.114	'
+        option ip '114.114.114.114      '
         option server_group 'cn'
         option name '114DNS'
-
+        option exclude_default_group '1'
 config server
         option enabled '1'
-        option type 'udp'
-        option name 'DNS派'
-        option ip '218.30.118.6'
+        option type 'https'
+        option name '360DNS'
+        option ip 'doh.360.cn'
         option server_group 'cn'
-
+        option exclude_default_group '1'
 config server
         option enabled '1'
-        option name 'Google'
+        option name 'Google Public DNS'
         option ip 'dns.google/dns-query'
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
-
 config server
         option enabled '1'
-        option name 'Cloudflare'
-        option ip '1dot1dot1dot1.cloudflare-dns.com/'
-        option type 'tls'
+        option name 'Cloudflare DNS'
+        option ip 'dns.cloudflare.com/dns-query'
+        option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
-
 config server
         option enabled '1'
-        option name 'Quad9'
+        option name 'Quad9 DNS'
         option ip 'dns.quad9.net/dns-query'
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
-
+config server
+        option enabled '1'
+        option name 'DNS.SB'
+        option ip 'dns.sb/dns-query'
+        option server_group 'gfw'
+        option exclude_default_group '1'
+        option type 'https'
 config server
         option enabled '1'
         option name 'OpenDNS'
-        option ip '208.67.222.222'
+        option ip 'dns.opendns.com/dns-query'
         option server_group 'gfw'
         option exclude_default_group '1'
-        option type 'udp'
-
-config server
-        option enabled '1'
-        option name 'OpenDNS'
-        option ip '208.67.220.220'
-        option server_group 'gfw'
-        option exclude_default_group '1'
-        option type 'udp'
+        option type 'https'
