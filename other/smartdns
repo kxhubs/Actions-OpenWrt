@@ -24,11 +24,16 @@ config smartdns
         option seconddns_no_rule_addr '1'
         option seconddns_no_dualstack_selection '1'
         option seconddns_no_cache '1'
+        option tls_server '0'
+        option doh_server '0'
+        option proxy_server 'socks5://127.0.0.1:1070'
+        option log_output_mode 'file'
+        option enable_auto_update '1'
+        option auto_update_week_time '*'
+        option auto_update_day_time '5'
         option old_port '5334'
         option old_enabled '1'
         option old_auto_set_dnsmasq '0'
-
-config domain-rule
 
 config server
         option enabled '1'
@@ -37,6 +42,7 @@ config server
         option type 'https'
         option server_group 'cn'
         option exclude_default_group '1'
+
 config server
         option enabled '1'
         option type 'udp'
@@ -44,6 +50,7 @@ config server
         option server_group 'cn'
         option name 'BaiduDNS'
         option exclude_default_group '1'
+
 config server
         option enabled '1'
         option name 'DNSPod'
@@ -51,13 +58,15 @@ config server
         option type 'https'
         option server_group 'cn'
         option exclude_default_group '1'
+
 config server
         option enabled '1'
         option type 'udp'
-        option ip '114.114.114.114      '
+        option ip '114.114.114.114'
         option server_group 'cn'
         option name '114DNS'
         option exclude_default_group '1'
+
 config server
         option enabled '1'
         option type 'https'
@@ -65,6 +74,7 @@ config server
         option ip 'doh.360.cn'
         option server_group 'cn'
         option exclude_default_group '1'
+
 config server
         option enabled '1'
         option name 'Google Public DNS'
@@ -72,6 +82,8 @@ config server
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
+        option use_proxy '1'
+
 config server
         option enabled '1'
         option name 'Cloudflare DNS'
@@ -79,6 +91,8 @@ config server
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
+        option use_proxy '1'
+
 config server
         option enabled '1'
         option name 'Quad9 DNS'
@@ -86,6 +100,8 @@ config server
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
+        option use_proxy '1'
+
 config server
         option enabled '1'
         option name 'DNS.SB'
@@ -93,6 +109,8 @@ config server
         option server_group 'gfw'
         option exclude_default_group '1'
         option type 'https'
+        option use_proxy '1'
+
 config server
         option enabled '1'
         option name 'OpenDNS'
@@ -100,3 +118,88 @@ config server
         option server_group 'gfw'
         option exclude_default_group '1'
         option type 'https'
+        option use_proxy '1'
+
+config client-rule
+        option enabled '0'
+        option dualstack_ip_selection '1'
+        option force_https_soa '1'
+
+config ip-rule
+
+config download-file
+        option name 'blackmatrix7_china-list'
+        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/blackmatrix7/china-list.conf'
+        option type 'list'
+
+config download-file
+        option name 'blackmatrix7_global-list'
+        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/blackmatrix7/global-list.conf'
+        option type 'list'
+
+config download-file
+        option name 'Loyalsoldier_china-list'
+        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/Loyalsoldier/china-list.conf'
+        option type 'list'
+
+config download-file
+        option name 'Loyalsoldier_global-list'
+        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/Loyalsoldier/global-list.conf'
+        option type 'list'
+
+config download-file
+        option name 'v2fly_china-list'
+        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/v2fly/china-list.conf'
+        option type 'list'
+
+config download-file
+        option name 'v2fly_global-list'
+        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/v2fly/global-list.conf'
+        option type 'list'
+
+config domain-rule
+
+config domain-rule-list
+        option enabled '1'
+        option name 'blackmatrix7_china'
+        option server_group 'cn'
+        option domain_list_file '/etc/smartdns/domain-set/blackmatrix7_china-list'
+        option block_domain_type 'none'
+
+config domain-rule-list
+        option enabled '1'
+        option name 'Loyalsoldier_china'
+        option server_group 'cn'
+        option domain_list_file '/etc/smartdns/domain-set/Loyalsoldier_china-list'
+        option block_domain_type 'none'
+
+config domain-rule-list
+        option enabled '1'
+        option name 'v2fly_china'
+        option server_group 'cn'
+        option domain_list_file '/etc/smartdns/domain-set/v2fly_china-list'
+        option block_domain_type 'none'
+
+config domain-rule-list
+        option enabled '1'
+        option name 'blackmatrix7_global'
+        option server_group 'gfw'
+        option block_domain_type 'none'
+        option force_aaaa_soa '1'
+        option domain_list_file '/etc/smartdns/domain-set/blackmatrix7_global-list'
+
+config domain-rule-list
+        option enabled '1'
+        option name 'Loyalsoldier_global'
+        option server_group 'gfw'
+        option domain_list_file '/etc/smartdns/domain-set/Loyalsoldier_global-list'
+        option block_domain_type 'none'
+        option force_aaaa_soa '1'
+
+config domain-rule-list
+        option enabled '1'
+        option name 'v2fly_global'
+        option server_group 'gfw'
+        option domain_list_file '/etc/smartdns/domain-set/v2fly_global-list'
+        option block_domain_type 'none'
+        option force_aaaa_soa '1'
