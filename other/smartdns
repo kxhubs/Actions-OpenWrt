@@ -129,77 +129,28 @@ config ip-rule
 
 config download-file
         option name 'blackmatrix7_china-list'
-        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/blackmatrix7/china-list.conf'
+        option url 'https://raw.githubusercontent.com/jiange1236/smartdns-rules/release/blackmatrix7/ChinaMax_Domain.txt'
         option type 'list'
 
 config download-file
         option name 'blackmatrix7_global-list'
-        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/blackmatrix7/global-list.conf'
-        option type 'list'
-
-config download-file
-        option name 'Loyalsoldier_china-list'
-        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/Loyalsoldier/china-list.conf'
-        option type 'list'
-
-config download-file
-        option name 'Loyalsoldier_global-list'
-        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/Loyalsoldier/global-list.conf'
-        option type 'list'
-
-config download-file
-        option name 'v2fly_china-list'
-        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/v2fly/china-list.conf'
-        option type 'list'
-
-config download-file
-        option name 'v2fly_global-list'
-        option url 'https://raw.githubusercontent.com/jklolixxs/SmartDNS_Rule/main/v2fly/global-list.conf'
+        option url 'https://raw.githubusercontent.com/jiange1236/smartdns-rules/release/blackmatrix7/Global_Domain.txt'
         option type 'list'
 
 config domain-rule
 
 config domain-rule-list
         option enabled '1'
-        option name 'blackmatrix7_china'
+        option name 'blackmatrix7_china-list'
         option server_group 'cn'
         option domain_list_file '/etc/smartdns/domain-set/blackmatrix7_china-list'
         option block_domain_type 'none'
 
 config domain-rule-list
         option enabled '1'
-        option name 'Loyalsoldier_china'
-        option server_group 'cn'
-        option domain_list_file '/etc/smartdns/domain-set/Loyalsoldier_china-list'
-        option block_domain_type 'none'
-
-config domain-rule-list
-        option enabled '1'
-        option name 'v2fly_china'
-        option server_group 'cn'
-        option domain_list_file '/etc/smartdns/domain-set/v2fly_china-list'
-        option block_domain_type 'none'
-
-config domain-rule-list
-        option enabled '1'
-        option name 'blackmatrix7_global'
+        option name 'blackmatrix7_global-list'
         option server_group 'gfw'
-        option block_domain_type 'none'
-        option force_aaaa_soa '1'
         option domain_list_file '/etc/smartdns/domain-set/blackmatrix7_global-list'
-
-config domain-rule-list
-        option enabled '1'
-        option name 'Loyalsoldier_global'
-        option server_group 'gfw'
-        option domain_list_file '/etc/smartdns/domain-set/Loyalsoldier_global-list'
-        option block_domain_type 'none'
-        option force_aaaa_soa '1'
-
-config domain-rule-list
-        option enabled '1'
-        option name 'v2fly_global'
-        option server_group 'gfw'
-        option domain_list_file '/etc/smartdns/domain-set/v2fly_global-list'
-        option block_domain_type 'none'
+        option block_domain_type 'ipv6'
+        option dualstack_ip_selection 'no'
         option force_aaaa_soa '1'
