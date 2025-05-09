@@ -41,7 +41,6 @@ config server
         option ip 'dns.alidns.com/dns-query'
         option type 'https'
         option server_group 'cn'
-        option exclude_default_group '1'
 
 config server
         option enabled '1'
@@ -49,7 +48,6 @@ config server
         option ip '180.76.76.76'
         option server_group 'cn'
         option name 'BaiduDNS'
-        option exclude_default_group '1'
 
 config server
         option enabled '1'
@@ -57,7 +55,6 @@ config server
         option ip 'doh.pub/dns-query'
         option type 'https'
         option server_group 'cn'
-        option exclude_default_group '1'
 
 config server
         option enabled '1'
@@ -65,7 +62,6 @@ config server
         option ip '114.114.114.114'
         option server_group 'cn'
         option name '114DNS'
-        option exclude_default_group '1'
 
 config server
         option enabled '1'
@@ -73,7 +69,6 @@ config server
         option name '360DNS'
         option ip 'doh.360.cn'
         option server_group 'cn'
-        option exclude_default_group '1'
 
 config server
         option enabled '1'
