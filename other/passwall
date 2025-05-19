@@ -246,4 +246,4 @@ config shunt_rules 'Direct'
 1.12.12.12/32
 120.53.53.53/32
 geoip:cn
-geoip:private'
+geoip:private
