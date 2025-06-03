@@ -24,13 +24,6 @@ config smartdns
         option seconddns_no_rule_addr '1'
         option seconddns_no_dualstack_selection '1'
         option seconddns_no_cache '1'
-        option tls_server '0'
-        option doh_server '0'
-        option proxy_server 'socks5://127.0.0.1:1070'
-        option log_output_mode 'file'
-        option enable_auto_update '1'
-        option auto_update_week_time '*'
-        option auto_update_day_time '5'
         option old_port '5334'
         option old_enabled '1'
         option old_auto_set_dnsmasq '0'
@@ -77,7 +70,6 @@ config server
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
-        option use_proxy '1'
 
 config server
         option enabled '1'
@@ -86,7 +78,6 @@ config server
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
-        option use_proxy '1'
 
 config server
         option enabled '1'
@@ -95,7 +86,6 @@ config server
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
-        option use_proxy '1'
 
 config server
         option enabled '1'
@@ -104,7 +94,6 @@ config server
         option server_group 'gfw'
         option exclude_default_group '1'
         option type 'https'
-        option use_proxy '1'
 
 config server
         option enabled '1'
@@ -113,39 +102,3 @@ config server
         option server_group 'gfw'
         option exclude_default_group '1'
         option type 'https'
-        option use_proxy '1'
-
-config client-rule
-        option enabled '0'
-        option dualstack_ip_selection '1'
-        option force_https_soa '1'
-
-config ip-rule
-
-config download-file
-        option name 'blackmatrix7_china-list'
-        option url 'https://raw.githubusercontent.com/jiange1236/smartdns-rules/release/blackmatrix7/ChinaMax_Domain.txt'
-        option type 'list'
-
-config download-file
-        option name 'blackmatrix7_global-list'
-        option url 'https://raw.githubusercontent.com/jiange1236/smartdns-rules/release/blackmatrix7/Global_Domain.txt'
-        option type 'list'
-
-config domain-rule
-
-config domain-rule-list
-        option enabled '1'
-        option name 'blackmatrix7_china-list'
-        option server_group 'cn'
-        option domain_list_file '/etc/smartdns/domain-set/blackmatrix7_china-list'
-        option block_domain_type 'none'
-
-config domain-rule-list
-        option enabled '1'
-        option name 'blackmatrix7_global-list'
-        option server_group 'gfw'
-        option domain_list_file '/etc/smartdns/domain-set/blackmatrix7_global-list'
-        option block_domain_type 'ipv6'
-        option dualstack_ip_selection 'no'
-        option force_aaaa_soa '1'
