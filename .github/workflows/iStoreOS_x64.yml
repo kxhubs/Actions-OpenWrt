@@ -8,7 +8,7 @@
 # Description: Build OpenWrt using GitHub Actions
 #
 
-name: Lede x86_64 Builder
+name: istore x86_64 Builder
 
 on:
   push:
@@ -25,11 +25,13 @@ on:
         default: 'false'
 
 env:
-  REPO_URL: https://github.com/coolsnowwolf/lede
-  REPO_BRANCH: master
+  REPO_URL: https://github.com/istoreos/istoreos
+  REPO_BRANCH: istoreos-24.10
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: config/lede_x64
-  RELEASE_TAG: x64_Lede
+  CONFIG_FILE: config/istoreos_x64
+  DIY_P1_SH: scripts/diy-part1.sh
+  DIY_P2_SH: scripts/diy-part2.sh
+  RELEASE_TAG: istoreos_x64
   UPLOAD_BIN_DIR: true
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
@@ -108,28 +110,22 @@ jobs:
     - name: Load custom feeds
       run: |
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-        sed -i '$a src-git smpackage https://github.com/kenzok8/small-package' openwrt/feeds.conf.default
-
+        chmod +x $DIY_P1_SH
+        cd openwrt
+        $GITHUB_WORKSPACE/$DIY_P1_SH
     - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a
+
+    - name: Install feeds
+      run: cd openwrt && ./scripts/feeds install -a
 
     - name: Load custom configuration
       run: |
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        chmod +x $DIY_P2_SH
         cd openwrt
-        rm -rf feeds/packages/lang/golang
-        git clone https://github.com/kenzok8/golang feeds/packages/lang/golang
-        rm -rf feeds/luci/applications/luci-app-openclash
-        cp -f $GITHUB_WORKSPACE/other/default-settings package/lean/default-settings/files/zzz-default-settings
-        cp -f $GITHUB_WORKSPACE/other/banner package/base-files/files/etc/banner
-        sed -i "s/%D %V, %C/openwrt $(date +'%m.%d') by kxhubs/g" package/base-files/files/etc/banner
-        sed -i 's/luci-theme-bootstrap/luci-theme-design/g' feeds/luci/collections/luci/Makefile
-        ./scripts/feeds update -a 
-        sed -i 's#GO_PKG_TARGET_VARS.*# #g' feeds/packages/utils/v2dat/Makefile 
-        ./scripts/feeds install -a
-        make defconfig
-        sed -i 's/CONFIG_BINUTILS_VERSION="2.42"/CONFIG_BINUTILS_VERSION="2.43.1"/' .config
+        $GITHUB_WORKSPACE/$DIY_P2_SH
 
     - name: SSH connection to Actions
       uses: P3TERX/ssh2actions@v1.0.0
