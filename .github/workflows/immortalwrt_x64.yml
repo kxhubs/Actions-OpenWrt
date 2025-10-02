@@ -194,19 +194,20 @@ jobs:
     - name: Upload firmware to release
       uses: softprops/action-gh-release@v1
       if: steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
       with:
-        token: ${{ secrets.PAT }}
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
 
     - name: Delete workflow runs
       uses: mitsukileung/delete-workflow-runs@main
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
       with:
         retain_days: 1
         keep_minimum_runs: 3
-        token: ${{ secrets.PAT }}
-        repository: ${{ github.repository }}
 
     - name: Remove old Releases
       uses: dev-drprasad/delete-older-releases@v0.2.1
@@ -214,8 +215,8 @@ jobs:
       with:
         keep_latest: 3
         delete_tags: true
-        token: ${{ secrets.PAT }}
-        repository: ${{ github.repository }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
 
     - name: TG Message
       if: env.SERVERCHAN_SCKEY == 'true'
