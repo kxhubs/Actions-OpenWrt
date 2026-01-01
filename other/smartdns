@@ -24,6 +24,7 @@ config smartdns
         option seconddns_no_rule_addr '1'
         option seconddns_no_dualstack_selection '1'
         option seconddns_no_cache '1'
+        option proxy_server 'socks5://127.0.0.1:1081'
         option old_port '5334'
         option old_enabled '1'
         option old_auto_set_dnsmasq '0'
@@ -70,6 +71,7 @@ config server
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
+        option use_proxy '1'
 
 config server
         option enabled '1'
@@ -78,6 +80,7 @@ config server
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
+        option use_proxy '1'
 
 config server
         option enabled '1'
@@ -86,6 +89,7 @@ config server
         option type 'https'
         option server_group 'gfw'
         option exclude_default_group '1'
+        option use_proxy '1'
 
 config server
         option enabled '1'
@@ -94,6 +98,7 @@ config server
         option server_group 'gfw'
         option exclude_default_group '1'
         option type 'https'
+        option use_proxy '1'
 
 config server
         option enabled '1'
@@ -102,3 +107,6 @@ config server
         option server_group 'gfw'
         option exclude_default_group '1'
         option type 'https'
+        option use_proxy '1'
+
+config domain-rule
