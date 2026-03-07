@@ -17,6 +17,8 @@ on:
   watch:
     types: [started]
   repository_dispatch:
+    types: [ trigger-build ]
+  repository_dispatch:
   workflow_dispatch:
     inputs:
       ssh:
