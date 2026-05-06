@@ -182,14 +182,42 @@ jobs:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
         
-    - name: Generate release tag
+    - name: Generate release tag with upstream changelog
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
         echo "release_tag=immortalwrt_$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
         touch release.txt
-        [ $UPLOAD_COWTRANSFER = true ] && echo "🔗 [Cowtransfer](${{ steps.cowtransfer.outputs.url }})" >> release.txt
-        [ $UPLOAD_WSSRANSFER = true ] && echo "🔗 [Wssransfer](${{ steps.wssransfer.outputs.url }})" >> release.txt
+        
+        # 添加标题
+        echo "# 🎉 ImmortalWrt 固件自动更新" >> release.txt
+        echo "" >> release.txt
+        
+        # 获取上游最新 commit 信息（如果 openwrt 目录存在）
+        if [ -d "openwrt/.git" ]; then
+          cd openwrt
+          UPSTREAM_HASH=$(git rev-parse HEAD)
+          UPSTREAM_SUBJECT=$(git log -1 --format=%s)
+          UPSTREAM_DATE=$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S')
+          cd ..
+          
+          echo "## 📌 基于以下 ImmortalWrt 上游版本构建：" >> release.txt
+          echo "- **Commit Hash**: \`$UPSTREAM_HASH\`" >> release.txt
+          echo "- **提交时间**: $UPSTREAM_DATE" >> release.txt
+          echo "- **提交说明**: $UPSTREAM_SUBJECT" >> release.txt
+          echo "" >> release.txt
+        fi
+        
+        echo "---" >> release.txt
+        echo "" >> release.txt
+        echo "### 📦 固件详细信息" >> release.txt
+        echo "- **构建时间**: $(date +'%Y-%m-%d %H:%M:%S')" >> release.txt
+        echo "- **构建号**: #${{ github.run_number }}" >> release.txt
+        
+        # 保留原有的 Cowtransfer 和 Wssransfer 链接（如果启用）
+        [ "${{ env.UPLOAD_COWTRANSFER }}" = "true" ] && echo "🔗 [Cowtransfer](${{ steps.cowtransfer.outputs.url }})" >> release.txt
+        [ "${{ env.UPLOAD_WSSRANSFER }}" = "true" ] && echo "🔗 [Wssransfer](${{ steps.wssransfer.outputs.url }})" >> release.txt
+        
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware to release
