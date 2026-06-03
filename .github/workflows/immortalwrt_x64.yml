@@ -238,14 +238,14 @@ jobs:
         retain_days: 1
         keep_minimum_runs: 3
 
-    - name: Remove old Releases
-      uses: dev-drprasad/delete-older-releases@v0.3.4
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
-      with:
-        keep_latest: 3
-        delete_tags: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAT }}
+    # - name: Remove old Releases
+    #   uses: dev-drprasad/delete-older-releases@v0.3.4
+    #   if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+    #   with:
+    #     keep_latest: 3
+    #     delete_tags: true
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.PAT }}
 
     - name: TG Message
       if: env.SERVERCHAN_SCKEY == 'true'
