@@ -33,5 +33,5 @@ sed -i "s/(\(luciversion || ''\))/(\1) + (' \/ $WRT_MARK-$WRT_DATE')/g" "$(find 
 #修改默认主机名
 # sed -i "s/hostname='.*'/hostname='$WRT_NAME'/g" $CFG_FILE
  
- # 修复 smartdns 编译：禁止自动检测 zlib（缺少 +zlib 依赖声明导致打包失败）
- sed -i '/^MAKE_VARS+= VER=/ s/$/ WITH_ZLIB=no/' feeds/kenzo/smartdns/Makefile
+ # 修复 smartdns 编译：声明 zlib 运行时依赖（smartdns 二进制链接了 libz.so.1 但 Makefile 未声明）
+ sed -i 's/DEPENDS:=+i386:libatomic +libopenssl/DEPENDS:=+i386:libatomic +libopenssl +zlib/' feeds/kenzo/smartdns/Makefile
