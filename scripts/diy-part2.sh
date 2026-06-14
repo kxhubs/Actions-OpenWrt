@@ -35,3 +35,6 @@ sed -i "s/(\(luciversion || ''\))/(\1) + (' \/ $WRT_MARK-$WRT_DATE')/g" "$(find 
  
  # 修复 smartdns 编译：声明 zlib 运行时依赖（smartdns 二进制链接了 libz.so.1 但 Makefile 未声明）
  sed -i 's/DEPENDS:=+i386:libatomic +libopenssl/DEPENDS:=+i386:libatomic +libopenssl +zlib/' feeds/kenzo/smartdns/Makefile
+ 
+ # 修复 trojan-plus Boost 库命名不匹配（OpenWrt 用 layout=system 无编译器标签，CMake FindBoost 默认搜索带标签的库名）
+ find feeds/small -name "Makefile" -path "*/trojan-plus/*" -exec sed -i '/-DBoost_NO_BOOST_CMAKE=ON/ s/$/ -DBoost_USE_TAGED_LAYOUT=OFF/' {} \;
