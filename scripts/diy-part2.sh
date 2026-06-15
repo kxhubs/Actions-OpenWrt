@@ -11,7 +11,7 @@
 #
 
 #默认主题
-WRT_THEME=argon
+ WRT_THEME=glass
 #默认主机名
 # WRT_NAME=Kxhubs
 #默认地址
