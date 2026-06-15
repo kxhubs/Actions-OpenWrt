@@ -94,7 +94,7 @@ jobs:
       run: |
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
         sudo -E apt-get -qq update
-        sudo -E apt-get -qq install $(curl -fsSL is.gd/depends_ubuntu_2204)
+         sudo -E apt-get -qq install $(curl -fsSL is.gd/depends_ubuntu_2204) python3-pyelftools
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
@@ -156,14 +156,14 @@ jobs:
 
     - name: Upload bin directory
       uses: actions/upload-artifact@main
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+       if: env.UPLOAD_BIN_DIR == 'true' && success()
       with:
         name: OpenWrt_bin_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
 
     - name: Organize files
       id: organize
-      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+       if: env.UPLOAD_FIRMWARE == 'true' && success()
       run: |
         cd openwrt/bin/targets/*/*
         rm -rf packages
@@ -172,14 +172,14 @@ jobs:
 
     - name: Upload firmware directory
       uses: actions/upload-artifact@main
-      if: steps.organize.outputs.status == 'success' && !cancelled()
+       if: success()
       with:
         name: OpenWrt_firmware_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
         
     - name: Generate release tag with upstream changelog
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+       if: env.UPLOAD_RELEASE == 'true' && success()
       run: |
         echo "release_tag=${{ matrix.target.tag }}_$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
         touch release.txt
@@ -206,7 +206,7 @@ jobs:
 
     - name: Upload firmware to release
       uses: softprops/action-gh-release@v3
-      if: steps.tag.outputs.status == 'success' && !cancelled()
+       if: success()
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
       with:
@@ -222,12 +222,22 @@ jobs:
         retain_days: 1
         keep_minimum_runs: 3
 
-    - name: TG Message
-      if: env.SERVERCHAN_SCKEY == 'true'
+   - name: TG Message
+       if: env.SERVERCHAN_SCKEY == 'true' && success()
       run: |
-        curl -k --data chat_id=${{ secrets.TGID }} --data "text=我亲爱的主人您要编译的$RELEASE_TAG-$(date +"%Y.%m.%d-%H%M")固件编译成功！" "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage"
+         curl -k --data chat_id=${{ secrets.TGID }} --data "text=✅ 我亲爱的主人您要编译的$RELEASE_TAG-$(date +"%Y.%m.%d-%H%M")固件编译成功！" "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage"
         
-    - name: PUSHPLUS Message
-      if: env.SERVERCHAN_SCKEY == 'true'
+   - name: PUSHPLUS Message
+       if: env.SERVERCHAN_SCKEY == 'true' && success()
       run: |
-        curl -k --data token="${{ secrets.PUSH_PLUS_TOKEN }}" --data title="恭喜主人$RELEASE_TAG-$(date +"%Y.%m.%d-%H%M")固件编译成功！" --data "content=我亲爱的主人您要编译的$RELEASE_TAG-$(date +"%Y.%m.%d-%H%M")固件成功完成了！" "http://www.pushplus.plus/send"
+         curl -k --data token="${{ secrets.PUSH_PLUS_TOKEN }}" --data title="✅ 恭喜主人$RELEASE_TAG-$(date +"%Y.%m.%d-%H%M")固件编译成功！" --data "content=✅ 我亲爱的主人您要编译的$RELEASE_TAG-$(date +"%Y.%m.%d-%H%M")固件成功完成了！" "http://www.pushplus.plus/send"
+ 
+     - name: TG Message (fail)
+       if: env.SERVERCHAN_SCKEY == 'true' && failure()
+       run: |
+         curl -k --data chat_id=${{ secrets.TGID }} --data "text=❌ 主人：$RELEASE_TAG-$(date +"%Y.%m.%d-%H%M") 编译失败，请检查日志！" "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage"
+ 
+     - name: PUSHPLUS Message (fail)
+       if: env.SERVERCHAN_SCKEY == 'true' && failure()
+       run: |
+         curl -k --data token="${{ secrets.PUSH_PLUS_TOKEN }}" --data title="❌ 主人：$RELEASE_TAG-$(date +"%Y.%m.%d-%H%M") 编译失败" --data "content=❌ 主人：$RELEASE_TAG-$(date +"%Y.%m.%d-%H%M") 编译失败，请检查日志！" "http://www.pushplus.plus/send"
