@@ -46,8 +46,8 @@ jobs:
           - { arch: R4S, config: immortalwrt_R4S, tag: immortalwrt_R4S }
           - { arch: x86_64, config: immortalwrt_x64, tag: immortalwrt_x64 }
     env:
-      CONFIG_FILE: config/${{ matrix.target.config }}
-      RELEASE_TAG: ${{ matrix.target.tag }}
+       CONFIG_FILE: "config/${{ matrix.target.config }}"
+       RELEASE_TAG: "${{ matrix.target.tag }}"
 
     steps:
 
