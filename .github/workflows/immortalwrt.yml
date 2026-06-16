@@ -153,14 +153,14 @@ jobs:
 
     - name: Upload bin directory
       uses: actions/upload-artifact@main
-       if: env.UPLOAD_BIN_DIR == 'true' && steps.compile.outcome == 'success'
+      if: env.UPLOAD_BIN_DIR == 'true' && success()
       with:
         name: OpenWrt_bin_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
 
     - name: Organize files
       id: organize
-       if: env.UPLOAD_FIRMWARE == 'true' && steps.compile.outcome == 'success'
+      if: env.UPLOAD_FIRMWARE == 'true' && success()
       run: |
         cd openwrt/bin/targets/*/*
         rm -rf packages
@@ -169,14 +169,14 @@ jobs:
 
     - name: Upload firmware directory
       uses: actions/upload-artifact@main
-       if: steps.compile.outcome == 'success'
+      if: success()
       with:
         name: OpenWrt_firmware_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
     - name: Generate release tag with upstream changelog
       id: tag
-       if: env.UPLOAD_RELEASE == 'true' && steps.compile.outcome == 'success'
+      if: env.UPLOAD_RELEASE == 'true' && success()
       run: |
         echo "release_tag=${{ matrix.target.tag }}_$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
         touch release.txt
@@ -203,7 +203,7 @@ jobs:
 
     - name: Upload firmware to release
       uses: softprops/action-gh-release@v3
-       if: steps.compile.outcome == 'success'
+      if: success()
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
       with:
@@ -220,12 +220,12 @@ jobs:
         keep_minimum_runs: 3
 
     - name: TG Message (success)
-       if: env.SERVERCHAN_SCKEY == 'true' && steps.compile.outcome == 'success'
+      if: env.SERVERCHAN_SCKEY == 'true' && success()
       run: |
         curl -k --data chat_id=${{ secrets.TGID }} --data "text=✅ 我亲爱的主人您要编译的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件编译成功！" "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage"
 
     - name: PUSHPLUS Message (success)
-       if: env.SERVERCHAN_SCKEY == 'true' && steps.compile.outcome == 'success'
+      if: env.SERVERCHAN_SCKEY == 'true' && success()
       run: |
         curl -k --data token="${{ secrets.PUSH_PLUS_TOKEN }}" --data title="✅ 恭喜主人${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件编译成功！" --data "content=✅ 我亲爱的主人您要编译的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件成功完成了！" "http://www.pushplus.plus/send"
 
