@@ -57,7 +57,7 @@ jobs:
         haskell: true
         large-packages: true
         swap-storage: true
-        
+
     - name: Checkout
       uses: actions/checkout@v6
 
@@ -74,17 +74,17 @@ jobs:
         echo -e "$(sudo lshw -short -C memory | grep GiB) \n"
         echo "--------------------------硬盘信息--------------------------"
         echo "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
-        
+
     - name: TG Message
       if: env.SERVERCHAN_SCKEY == 'true'
       run: |
         curl -k --data chat_id=${{ secrets.TGID }} --data "text=主人：正在为您编译新的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M"),请耐心等待...... 😋💐" "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage"
-        
+
     - name: PUSHPLUS Message
       if: env.SERVERCHAN_SCKEY == 'true'
       run: |
         curl -k --data token="${{ secrets.PUSH_PLUS_TOKEN }}" --data title="开始编译${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")" --data "content=🎉 主人：正在为您编译新的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M"),请耐心等待...... 😋💐" "http://www.pushplus.plus/send"
- 
+
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -97,14 +97,14 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
-        
+
     - name: Clone source code
       working-directory: /workdir
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
-        
+
     - name: Load custom feeds
       run: |
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
@@ -173,7 +173,7 @@ jobs:
       with:
         name: OpenWrt_firmware_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
-        
+
     - name: Generate release tag with upstream changelog
       id: tag
        if: env.UPLOAD_RELEASE == 'true' && steps.compile.outcome == 'success'
@@ -223,17 +223,17 @@ jobs:
        if: env.SERVERCHAN_SCKEY == 'true' && steps.compile.outcome == 'success'
       run: |
         curl -k --data chat_id=${{ secrets.TGID }} --data "text=✅ 我亲爱的主人您要编译的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件编译成功！" "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage"
-        
+
     - name: PUSHPLUS Message (success)
        if: env.SERVERCHAN_SCKEY == 'true' && steps.compile.outcome == 'success'
       run: |
         curl -k --data token="${{ secrets.PUSH_PLUS_TOKEN }}" --data title="✅ 恭喜主人${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件编译成功！" --data "content=✅ 我亲爱的主人您要编译的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件成功完成了！" "http://www.pushplus.plus/send"
- 
+
     - name: TG Message (fail)
       if: env.SERVERCHAN_SCKEY == 'true' && failure()
       run: |
         curl -k --data chat_id=${{ secrets.TGID }} --data "text=❌ 主人：${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M") 编译失败，请检查日志！" "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage"
- 
+
     - name: PUSHPLUS Message (fail)
       if: env.SERVERCHAN_SCKEY == 'true' && failure()
       run: |
