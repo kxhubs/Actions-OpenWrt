@@ -164,8 +164,8 @@ jobs:
       run: |
         cd openwrt/bin/targets/*/*
          rm -rf packages
-         # Keep only ext4 and squashfs .img files for release
-         find . -name "*.img*" ! -name "*ext4*" ! -name "*squashfs*" -delete
+         # Keep only ext4 and squashfs .img files, remove everything else
+         find . -type f ! -name "*ext4*.img*" ! -name "*squashfs*.img*" -delete
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
@@ -180,28 +180,38 @@ jobs:
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && success()
       run: |
-        echo "release_tag=${{ matrix.target.tag }}_$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
-        touch release.txt
-        echo "# 🎉 ImmortalWrt 固件自动更新" >> release.txt
-        echo "" >> release.txt
-        if [ -d "openwrt/.git" ]; then
-          cd openwrt
-          UPSTREAM_HASH=$(git rev-parse HEAD)
-          UPSTREAM_SUBJECT=$(git log -1 --format=%s)
-          UPSTREAM_DATE=$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S')
-          cd ..
-          echo "## 📌 基于以下 ImmortalWrt 上游版本构建：" >> release.txt
-          echo "- **Commit Hash**: \`$UPSTREAM_HASH\`" >> release.txt
-          echo "- **提交时间**: $UPSTREAM_DATE" >> release.txt
-          echo "- **提交说明**: $UPSTREAM_SUBJECT" >> release.txt
-          echo "" >> release.txt
-        fi
-        echo "---" >> release.txt
-        echo "" >> release.txt
-        echo "### 📦 固件详细信息" >> release.txt
-        echo "- **构建时间**: $(date +'%Y-%m-%d %H:%M:%S')" >> release.txt
-        echo "- **构建号**: #${{ github.run_number }}" >> release.txt
-        echo "status=success" >> $GITHUB_OUTPUT
+         BUILD_TIME=$(date +'%Y-%m-%d %H:%M:%S')
+         RELEASE_TAG="${{ matrix.target.tag }}_$(date +'%Y.%m.%d-%H%M')"
+         echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+         touch release.txt
+         {
+           echo "# 🎉 ImmortalWrt 固件 ${RELEASE_TAG}"
+           echo ""
+           echo "| 项目 | 详情 |"
+           echo "|------|------|"
+           echo "| 架构 | ${{ matrix.target.arch }} |"
+           echo "| 构建时间 | $BUILD_TIME |"
+           echo "| 构建号 | #${{ github.run_number }} |"
+           if [ -d "openwrt/.git" ]; then
+             cd openwrt
+             UPSTREAM_HASH=$(git rev-parse HEAD)
+             UPSTREAM_SUBJECT=$(git log -1 --format=%s)
+             UPSTREAM_DATE=$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S')
+             cd ..
+             echo "| 上游更新 | $UPSTREAM_SUBJECT |"
+             echo "| 上游时间 | $UPSTREAM_DATE |"
+           fi
+           echo ""
+           echo "## 📥 镜像格式"
+           echo ""
+           echo "- ext4 — 适用于全新刷写或恢复模式"
+           echo "- squashfs — 适用于系统升级 (sysupgrade)"
+           echo ""
+           echo "---"
+           echo ""
+           echo "> 自动构建 · 仅发布 ext4 & squashfs 镜像"
+         } > release.txt
+         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware to release
       uses: softprops/action-gh-release@v3
