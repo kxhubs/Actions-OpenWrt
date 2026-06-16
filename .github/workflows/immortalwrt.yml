@@ -163,7 +163,9 @@ jobs:
       if: env.UPLOAD_FIRMWARE == 'true' && success()
       run: |
         cd openwrt/bin/targets/*/*
-        rm -rf packages
+         rm -rf packages
+         # Keep only ext4 and squashfs .img files for release
+         find . -name "*.img*" ! -name "*ext4*" ! -name "*squashfs*" -delete
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
