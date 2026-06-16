@@ -32,3 +32,6 @@ sed -i "s/(\(luciversion || ''\))/(\1) + (' \/ $WRT_MARK-$WRT_DATE')/g" "$(find 
 
 #修改默认主机名
 # sed -i "s/hostname='.*'/hostname='$WRT_NAME'/g" $CFG_FILE
+ 
+ # 修复 luci-app-dockerman 版本号（kenzok8 用了 v 前缀，APK 不认）
+ sed -i 's/PKG_VERSION:=v/PKG_VERSION:=/' feeds/kenzo/luci-app-dockerman/Makefile
