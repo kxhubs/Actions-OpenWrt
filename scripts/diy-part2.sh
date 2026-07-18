@@ -21,6 +21,19 @@ WRT_DATE=$(TZ=UTC-8 date +"%y.%m.%d_%H.%M.%S")
 WRT_MARK=Kxhubs
 CFG_FILE="./package/base-files/files/bin/config_generate"
 
+case "$REPO_BRANCH" in
+  openwrt-[0-9]*.[0-9]*|immortalwrt-[0-9]*.[0-9]*)
+    OPENWRT_OFFICIAL_REPO="https://downloads.openwrt.org/releases/${REPO_BRANCH#*-}"
+    ;;
+  *)
+    OPENWRT_OFFICIAL_REPO="https://downloads.openwrt.org/snapshots"
+    ;;
+esac
+
+# Force generated APK/OPKG package feeds to use the official OpenWrt server.
+sed -i '/^CONFIG_VERSION_REPO=/d' .config
+echo "CONFIG_VERSION_REPO=\"$OPENWRT_OFFICIAL_REPO\"" >> .config
+
 #修改默认主题
 sed -i "s/luci-theme-bootstrap/luci-theme-$WRT_THEME/g" "$(find ./feeds/luci/collections/ -type f -name "Makefile")"
 

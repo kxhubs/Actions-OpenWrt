@@ -23,6 +23,14 @@ sed -i '/other/d' /etc/opkg/distfeeds.conf
 sed -i "s/# //g" /etc/opkg/distfeeds.conf
 sed -i '/check_signature/d' /etc/opkg.conf
 
+for apk_feed in /etc/apk/repositories /etc/apk/repositories.d/*.list; do
+    [ -f "$apk_feed" ] || continue
+    awk '
+        /^[[:space:]]*#/ || $0 !~ /https?:\/\// { print; next }
+        { sub(/https?:\/\/[^\/]+\/(openwrt\/)?/, "https://downloads.openwrt.org/"); print }
+    ' "$apk_feed" > "$apk_feed.tmp" && mv "$apk_feed.tmp" "$apk_feed"
+done
+
 #sed -i 's/root::0:0:99999:7:::/root:$1$V4UetPzk$CYXluq4wUazHjmCDBCqXF.:0:0:99999:7:::/g' /etc/shadow
 
 uci set dhcp.lan.ra='server'
