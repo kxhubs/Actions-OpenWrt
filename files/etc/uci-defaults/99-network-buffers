@@ -1,0 +1,42 @@
+#!/bin/sh
+
+SYSCTL_CONF="/etc/sysctl.conf"
+BEGIN_MARK="# BEGIN custom network buffer defaults"
+END_MARK="# END custom network buffer defaults"
+
+BUFFER_DEFAULTS="$(cat <<'EOF'
+net.core.rmem_default=1048576
+net.core.rmem_max=16777216
+net.core.wmem_default=1048576
+net.core.wmem_max=16777216
+net.core.netdev_max_backlog=8192
+net.core.somaxconn=4096
+net.ipv4.tcp_rmem=4096 87380 16777216
+net.ipv4.tcp_wmem=4096 65536 16777216
+net.ipv4.tcp_max_syn_backlog=4096
+EOF
+)"
+
+TMP_CONF="${SYSCTL_CONF}.tmp"
+
+if [ -f "$SYSCTL_CONF" ]; then
+	sed "/^${BEGIN_MARK}$/,/^${END_MARK}$/d" "$SYSCTL_CONF" > "$TMP_CONF"
+else
+	: > "$TMP_CONF"
+fi
+
+{
+	printf '%s\n' "$BEGIN_MARK"
+	printf '%s\n' "$BUFFER_DEFAULTS"
+	printf '%s\n' "$END_MARK"
+} >> "$TMP_CONF"
+
+mv "$TMP_CONF" "$SYSCTL_CONF"
+chmod 0644 "$SYSCTL_CONF"
+
+printf '%s\n' "$BUFFER_DEFAULTS" | while IFS= read -r sysctl_value; do
+	[ -n "$sysctl_value" ] || continue
+	sysctl -w "$sysctl_value" >/dev/null 2>&1 || true
+done
+
+exit 0

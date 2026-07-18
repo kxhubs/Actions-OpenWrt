@@ -34,6 +34,11 @@ esac
 sed -i '/^CONFIG_VERSION_REPO=/d' .config
 echo "CONFIG_VERSION_REPO=\"$OPENWRT_OFFICIAL_REPO\"" >> .config
 
+# Ensure custom first-boot defaults are executable in the firmware image.
+if [ -d ./files/etc/uci-defaults ]; then
+  chmod 0755 ./files/etc/uci-defaults/*
+fi
+
 #修改默认主题
 sed -i "s/luci-theme-bootstrap/luci-theme-$WRT_THEME/g" "$(find ./feeds/luci/collections/ -type f -name "Makefile")"
 
