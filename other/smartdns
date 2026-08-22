@@ -6,7 +6,7 @@ config smartdns
         option tcp_server '1'
         option ipv6_server '0'
         option bind_device '0'
-        option dualstack_ip_selection '1'
+        option dualstack_ip_selection '0'
         option prefetch_domain '1'
         option serve_expired '1'
         option cache_size '8600'
@@ -24,7 +24,11 @@ config smartdns
         option seconddns_no_rule_addr '1'
         option seconddns_no_dualstack_selection '1'
         option seconddns_no_cache '1'
-        option proxy_server 'socks5://127.0.0.1:1081'
+        option proxy_server 'http://127.0.0.1:7890'
+        option log_size '100M'
+        option log_num '100'
+        option speed_check_mode 'none'
+        option response_mode 'fastest-response'
         option old_port '5334'
         option old_enabled '1'
         option old_auto_set_dnsmasq '0'
@@ -94,7 +98,7 @@ config server
 config server
         option enabled '1'
         option name 'DNS.SB'
-        option ip 'dns.sb/dns-query'
+        option ip 'dot.sb/dns-query'
         option server_group 'gfw'
         option exclude_default_group '1'
         option type 'https'
@@ -110,3 +114,7 @@ config server
         option use_proxy '1'
 
 config domain-rule
+
+config client-rule
+
+config ip-rule
