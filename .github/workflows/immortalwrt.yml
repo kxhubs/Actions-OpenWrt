@@ -179,61 +179,6 @@ jobs:
         name: OpenWrt_firmware_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
-    - name: Generate release tag with upstream changelog
-      id: tag
-      if: env.UPLOAD_RELEASE == 'true' && success()
-      run: |
-         BUILD_TIME=$(date +'%Y-%m-%d %H:%M:%S')
-         RELEASE_TAG="${{ matrix.target.tag }}_$(date +'%Y.%m.%d-%H%M')"
-         echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
-         touch release.txt
-         {
-           echo "# 🎉 ImmortalWrt 固件 ${RELEASE_TAG}"
-           echo ""
-           echo "| 项目 | 详情 |"
-           echo "|------|------|"
-           echo "| 架构 | ${{ matrix.target.arch }} |"
-           echo "| 构建时间 | $BUILD_TIME |"
-           echo "| 构建号 | #${{ github.run_number }} |"
-           if [ -d "openwrt/.git" ]; then
-             cd openwrt
-             UPSTREAM_HASH=$(git rev-parse HEAD)
-             UPSTREAM_SUBJECT=$(git log -1 --format=%s)
-             UPSTREAM_DATE=$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S')
-             cd ..
-             echo "| 上游更新 | $UPSTREAM_SUBJECT |"
-             echo "| 上游时间 | $UPSTREAM_DATE |"
-           fi
-           echo ""
-           echo "## 📥 镜像格式"
-           echo ""
-           echo "- ext4 — 适用于全新刷写或恢复模式"
-           echo "- squashfs — 适用于系统升级 (sysupgrade)"
-           echo ""
-           echo "---"
-           echo ""
-           echo "> 自动构建 · 仅发布 ext4 & squashfs 镜像"
-         } > release.txt
-         echo "status=success" >> $GITHUB_OUTPUT
-
-    - name: Upload firmware to release
-      uses: softprops/action-gh-release@v3
-      if: success()
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAT }}
-      with:
-        tag_name: ${{ steps.tag.outputs.release_tag }}
-        body_path: release.txt
-        files: ${{ env.FIRMWARE }}/*
-
-    - name: Delete workflow runs
-      uses: Mattraks/delete-workflow-runs@v2.1.0
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAT }}
-      with:
-        retain_days: 1
-        keep_minimum_runs: 3
-
     - name: TG Message (success)
       if: env.SERVERCHAN_SCKEY == 'true' && success()
       run: |
@@ -253,3 +198,64 @@ jobs:
       if: env.SERVERCHAN_SCKEY == 'true' && failure()
       run: |
         curl -k --data token="${{ secrets.PUSH_PLUS_TOKEN }}" --data title="❌ 主人：${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M") 编译失败" --data "content=❌ 主人：${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M") 编译失败，请检查日志！" "http://www.pushplus.plus/send"
+
+  publish:
+    name: Publish combined firmware release
+    needs: build
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Download all firmware artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: OpenWrt_firmware_*
+        path: firmware
+        merge-multiple: true
+
+    - name: Generate combined release notes
+      id: tag
+      run: |
+        BUILD_TIME=$(date +'%Y-%m-%d %H:%M:%S')
+        RELEASE_TAG="ImmortalWrt_${{ github.run_number }}.${{ github.run_attempt }}_$(date +'%Y.%m.%d-%H%M')"
+        echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+        git clone --depth 1 --branch "$REPO_BRANCH" "$REPO_URL" upstream
+        UPSTREAM_SUBJECT=$(git -C upstream log -1 --format=%s)
+        UPSTREAM_DATE=$(git -C upstream log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S')
+        {
+          echo "# 🎉 ImmortalWrt 固件 ${RELEASE_TAG}"
+          echo ""
+          echo "| 项目 | 详情 |"
+          echo "|------|------|"
+          echo "| 架构 | R4S / x86_64 |"
+          echo "| 构建时间 | $BUILD_TIME |"
+          echo "| 构建号 | #${{ github.run_number }} |"
+          echo "| 上游更新 | $UPSTREAM_SUBJECT |"
+          echo "| 上游时间 | $UPSTREAM_DATE |"
+          echo ""
+          echo "## 📥 镜像格式"
+          echo ""
+          echo "- x86_64 — combined EFI 镜像"
+          echo "- R4S — ext4 与 squashfs 镜像"
+          echo ""
+          echo "---"
+          echo ""
+          echo "> 同一次构建的所有架构镜像统一发布"
+        } > release.txt
+
+    - name: Upload all firmware to one release
+      uses: softprops/action-gh-release@v3
+      if: env.UPLOAD_RELEASE == 'true' && success()
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt
+        files: firmware/*
+
+    - name: Delete workflow runs
+      uses: Mattraks/delete-workflow-runs@v2.1.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
+      with:
+        retain_days: 1
+        keep_minimum_runs: 3
