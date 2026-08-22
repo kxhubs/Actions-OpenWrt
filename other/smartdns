@@ -65,7 +65,7 @@ config server
         option enabled '1'
         option type 'https'
         option name '360DNS'
-        option ip 'doh.360.cn'
+        option ip 'doh.360.cn/dns-query'
         option server_group 'cn'
 
 config server
@@ -98,7 +98,7 @@ config server
 config server
         option enabled '1'
         option name 'DNS.SB'
-        option ip 'dot.sb/dns-query'
+        option ip 'doh.dns.sb/dns-query'
         option server_group 'gfw'
         option exclude_default_group '1'
         option type 'https'
@@ -107,7 +107,7 @@ config server
 config server
         option enabled '1'
         option name 'OpenDNS'
-        option ip 'dns.opendns.com/dns-query'
+        option ip 'doh.opendns.com/dns-query'
         option server_group 'gfw'
         option exclude_default_group '1'
         option type 'https'
