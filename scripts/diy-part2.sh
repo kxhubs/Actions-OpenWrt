@@ -34,6 +34,12 @@ esac
 sed -i '/^CONFIG_VERSION_REPO=/d' .config
 echo "CONFIG_VERSION_REPO=\"$OPENWRT_OFFICIAL_REPO\"" >> .config
 
+# Source-only feeds have no hosted APK index; keep them out of runtime repositories.
+for SOURCE_ONLY_FEED in kenzo small bandix_core bandix_luci video; do
+  sed -i "/^CONFIG_FEED_${SOURCE_ONLY_FEED}=/d; /^# CONFIG_FEED_${SOURCE_ONLY_FEED} is not set$/d" .config
+  echo "# CONFIG_FEED_${SOURCE_ONLY_FEED} is not set" >> .config
+done
+
 #修改默认主题
 sed -i "s/luci-theme-bootstrap/luci-theme-$WRT_THEME/g" "$(find ./feeds/luci/collections/ -type f -name "Makefile")"
 
