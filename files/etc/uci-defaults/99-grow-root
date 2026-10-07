@@ -1,0 +1,78 @@
+#!/bin/sh
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+STATE_FILE=/etc/root-grow.pending
+
+log() {
+	logger -t grow-root "$*"
+}
+
+ROOT_SOURCE=$(awk '$2 == "/" { print $1; exit }' /proc/mounts)
+ROOT_FSTYPE=$(awk '$2 == "/" { print $3; exit }' /proc/mounts)
+
+if [ "$ROOT_FSTYPE" != "ext4" ]; then
+	log "Skipping unsupported root filesystem: ${ROOT_FSTYPE:-unknown}"
+	exit 0
+fi
+
+case "$ROOT_SOURCE" in
+	/dev/*) ;;
+	*) log "Skipping unsupported root source: ${ROOT_SOURCE:-unknown}"; exit 0 ;;
+esac
+
+ROOT_SOURCE=$(readlink -f "$ROOT_SOURCE")
+if [ ! -b "$ROOT_SOURCE" ]; then
+	log "Root source is not a block device: $ROOT_SOURCE"
+	exit 1
+fi
+
+DISK_NAME=$(lsblk -no PKNAME "$ROOT_SOURCE" | tr -d '[:space:]')
+PARTITION_NUMBER=$(lsblk -no PARTN "$ROOT_SOURCE" | tr -d '[:space:]')
+if [ -z "$DISK_NAME" ] || [ -z "$PARTITION_NUMBER" ]; then
+	log "Could not identify the parent disk and partition for $ROOT_SOURCE"
+	exit 1
+fi
+
+DISK="/dev/$DISK_NAME"
+if [ ! -b "$DISK" ]; then
+	log "Parent disk is not a block device: $DISK"
+	exit 1
+fi
+
+LAST_PARTITION=$(lsblk -nrpo NAME,TYPE "$DISK" | awk '$2 == "part" { last = $1 } END { print last }')
+if [ -z "$LAST_PARTITION" ]; then
+	log "Could not enumerate partitions on $DISK"
+	exit 1
+fi
+
+if [ "$(readlink -f "$LAST_PARTITION")" != "$ROOT_SOURCE" ]; then
+	log "Root partition is not the final partition on $DISK; leaving layout unchanged"
+	exit 0
+fi
+
+if [ ! -e "$STATE_FILE" ]; then
+	if ! parted -s "$DISK" resizepart "$PARTITION_NUMBER" 100%; then
+		log "Failed to extend partition $PARTITION_NUMBER on $DISK"
+		exit 1
+	fi
+
+	case "$DISK" in
+		/dev/loop[0-9]*) losetup -c "$DISK" || log "Could not refresh loop device $DISK; reboot will refresh it" ;;
+	esac
+
+	touch "$STATE_FILE" || exit 1
+	sync
+	log "Partition extended; rebooting before filesystem resize"
+	(sleep 3; reboot) >/dev/null 2>&1 &
+	exit 1
+fi
+
+if resize2fs "$ROOT_SOURCE"; then
+	rm -f "$STATE_FILE"
+	sync
+	log "Root filesystem resize completed"
+	exit 0
+fi
+
+log "Filesystem resize failed; keeping one-shot script for a later boot"
+exit 1

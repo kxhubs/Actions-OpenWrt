@@ -11,7 +11,7 @@
 #
 
 #默认主题
- WRT_THEME=glass
+ WRT_THEME=neobird
 #默认主机名
 # WRT_NAME=Kxhubs
 #默认地址
@@ -20,6 +20,13 @@ WRT_IP=192.168.1.2
 WRT_DATE=$(TZ=UTC-8 date +"%y.%m.%d_%H.%M.%S")
 WRT_MARK=Kxhubs
 CFG_FILE="./package/base-files/files/bin/config_generate"
+
+# Add the standalone LuCI theme package before make defconfig.
+NEOBIRD_DIR="package/lean/luci-theme-neobird"
+if [ ! -d "$NEOBIRD_DIR" ]; then
+  mkdir -p package/lean
+  git clone --depth 1 https://github.com/thinktip/luci-theme-neobird.git "$NEOBIRD_DIR"
+fi
 
 case "$REPO_BRANCH" in
   openwrt-[0-9]*.[0-9]*|immortalwrt-[0-9]*.[0-9]*)
