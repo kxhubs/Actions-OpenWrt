@@ -11,7 +11,7 @@
 #
 
 #默认主题
- WRT_THEME=neobird
+ WRT_THEME=aurora
 #默认主机名
 # WRT_NAME=Kxhubs
 #默认地址
@@ -22,10 +22,9 @@ WRT_MARK=Kxhubs
 CFG_FILE="./package/base-files/files/bin/config_generate"
 
 # Add the standalone LuCI theme package before make defconfig.
-NEOBIRD_DIR="package/lean/luci-theme-neobird"
-if [ ! -d "$NEOBIRD_DIR" ]; then
-  mkdir -p package/lean
-  git clone --depth 1 https://github.com/thinktip/luci-theme-neobird.git "$NEOBIRD_DIR"
+AURORA_DIR="package/luci-theme-aurora"
+if [ ! -d "$AURORA_DIR" ]; then
+  git clone --depth 1 https://github.com/eamonxg/luci-theme-aurora.git "$AURORA_DIR"
 fi
 
 case "$REPO_BRANCH" in
@@ -42,7 +41,7 @@ sed -i '/^CONFIG_VERSION_REPO=/d' .config
 echo "CONFIG_VERSION_REPO=\"$OPENWRT_OFFICIAL_REPO\"" >> .config
 
 # Source-only feeds have no hosted APK index; keep them out of runtime repositories.
-for SOURCE_ONLY_FEED in kenzo small bandix_core bandix_luci video; do
+for SOURCE_ONLY_FEED in passwall_packages kenzo small bandix_core bandix_luci video; do
   sed -i "/^CONFIG_FEED_${SOURCE_ONLY_FEED}=/d; /^# CONFIG_FEED_${SOURCE_ONLY_FEED} is not set$/d" .config
   echo "# CONFIG_FEED_${SOURCE_ONLY_FEED} is not set" >> .config
 done
