@@ -120,6 +120,20 @@ jobs:
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
 
+    - name: Include latest GeoIP and Geosite
+      run: |
+        set -euo pipefail
+        rules_url=https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download
+        rules_dir="$GITHUB_WORKSPACE/openwrt/files/usr/share/v2ray"
+        mkdir -p "$rules_dir"
+        for rule in geoip geosite; do
+          curl -fL --retry 3 -o "$RUNNER_TEMP/$rule.dat" "$rules_url/$rule.dat"
+          curl -fL --retry 3 -o "$RUNNER_TEMP/$rule.dat.sha256sum" "$rules_url/$rule.dat.sha256sum"
+          (cd "$RUNNER_TEMP" && sha256sum -c "$rule.dat.sha256sum")
+          install -m 0644 "$RUNNER_TEMP/$rule.dat" "$rules_dir/$rule.dat"
+          sha256sum "$rules_dir/$rule.dat"
+        done
+
     - name: SSH connection to Actions
       uses: P3TERX/ssh2actions@v1.0.0
       if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false') || contains(github.event.action, 'ssh')
@@ -132,6 +146,12 @@ jobs:
       run: |
         cd openwrt
         make defconfig
+        xray_version=$(sed -n 's/^PKG_VERSION:=//p' package/feeds/passwall_packages/xray-core/Makefile)
+        echo "Xray-core source version: $xray_version"
+        dpkg --compare-versions "$xray_version" ge 26.9.30
+        for package in xray-core v2ray-geoip v2ray-geosite; do
+          grep -qx "CONFIG_PACKAGE_${package}=y" .config
+        done
         make download -j$(nproc)
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
