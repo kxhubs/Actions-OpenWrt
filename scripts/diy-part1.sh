@@ -14,7 +14,7 @@ rm -rf feeds/packages/utils/v2dat
 rm -rf feeds/packages/lang/golang
 
 # 更新Golang版本
-git clone https://github.com/sbwml/packages_lang_golang -b 26.x feeds/packages/lang/golang
+git clone https://github.com/sbwml/packages_lang_golang -b 27.x feeds/packages/lang/golang
 
 ./scripts/feeds install -a
 ./scripts/feeds install -p passwall_packages -f xray-core v2ray-geoip v2ray-geosite
