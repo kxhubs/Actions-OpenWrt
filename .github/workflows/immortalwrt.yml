@@ -36,8 +36,24 @@ env:
   SERVERCHAN_SCKEY: true
   TZ: Asia/Shanghai
 
+permissions:
+  contents: read
+
 jobs:
+  source:
+    runs-on: ubuntu-22.04
+    outputs:
+      commit: ${{ steps.resolve.outputs.commit }}
+    steps:
+    - name: Resolve upstream once for both architectures
+      id: resolve
+      run: |
+        commit=$(git ls-remote "$REPO_URL" "refs/heads/$REPO_BRANCH" | awk '{print $1}')
+        [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+        echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: source
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -49,9 +65,9 @@ jobs:
     steps:
 
     - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@main
+      uses: jlumbroso/free-disk-space@36e9a5af4eddb91fc11aec4c6f6f79b3cc0cb523 # main, pinned for reproducibility
       with:
-        tool-cache: true
+        preinstalled-runtimes: true
         android: true
         dotnet: true
         haskell: true
@@ -61,37 +77,48 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
 
-    - name: Check Server Performance(检查服务器性能)
+    - name: Check build resources
       run: |
-        echo "警告⚠"
-        echo "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！"
-        echo -e "已知CPU型号（降序）：7763，8370C，8272CL，8171M，E5-2673 \n"
-        echo "--------------------------CPU信息--------------------------"
-        echo "CPU物理数量：$(cat /proc/cpuinfo | grep "physical id" | sort | uniq | wc -l)"
-        echo -e "CPU核心信息：$(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c) \n"
-        echo "--------------------------内存信息--------------------------"
-        echo "已安装内存详细信息："
-        echo -e "$(sudo lshw -short -C memory | grep GiB) \n"
-        echo "--------------------------硬盘信息--------------------------"
-        echo "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
+        lscpu
+        free -h
+        lsblk
+        df -hT
+        jobs=$(nproc)
+        memory_jobs=$(awk '/MemAvailable:/ {print int($2 / 1572864)}' /proc/meminfo)
+        [ "$memory_jobs" -ge 1 ] || memory_jobs=1
+        [ "$jobs" -le "$memory_jobs" ] || jobs=$memory_jobs
+        echo "BUILD_JOBS=$jobs" >> "$GITHUB_ENV"
 
     - name: TG Message
+      continue-on-error: true
+      env:
+        TGID: ${{ secrets.TGID }}
+        TG_TOKEN: ${{ secrets.TG_TOKEN }}
+        PUSH_PLUS_TOKEN: ${{ secrets.PUSH_PLUS_TOKEN }}
       if: env.SERVERCHAN_SCKEY == 'true'
       run: |
-        curl -k --data chat_id=${{ secrets.TGID }} --data "text=主人：正在为您编译新的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M"),请耐心等待...... 😋💐" "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage"
+        [ -n "$TG_TOKEN" ] || exit 0
+        curl --fail-with-body --connect-timeout 10 --max-time 30 --silent --show-error --data-urlencode "chat_id=$TGID" --data-urlencode "text=主人：正在为您编译新的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M"),请耐心等待...... 😋💐" "https://api.telegram.org/bot$TG_TOKEN/sendMessage" -o "$RUNNER_TEMP/notification.json"
+        jq -e '.ok == true' "$RUNNER_TEMP/notification.json" >/dev/null
 
     - name: PUSHPLUS Message
+      continue-on-error: true
+      env:
+        TGID: ${{ secrets.TGID }}
+        TG_TOKEN: ${{ secrets.TG_TOKEN }}
+        PUSH_PLUS_TOKEN: ${{ secrets.PUSH_PLUS_TOKEN }}
       if: env.SERVERCHAN_SCKEY == 'true'
       run: |
-        curl -k --data token="${{ secrets.PUSH_PLUS_TOKEN }}" --data title="开始编译${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")" --data "content=🎉 主人：正在为您编译新的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M"),请耐心等待...... 😋💐" "http://www.pushplus.plus/send"
+        [ -n "$PUSH_PLUS_TOKEN" ] || exit 0
+        curl --fail-with-body --connect-timeout 10 --max-time 30 --silent --show-error --data-urlencode token="$PUSH_PLUS_TOKEN" --data-urlencode title="开始编译${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")" --data-urlencode "content=🎉 主人：正在为您编译新的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M"),请耐心等待...... 😋💐" "https://www.pushplus.plus/send" -o "$RUNNER_TEMP/notification.json"
+        jq -e '.code == 200' "$RUNNER_TEMP/notification.json" >/dev/null
 
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
         sudo -E apt-get -qq update
-        sudo -E apt-get -qq install $(curl -fsSL is.gd/depends_ubuntu_2204) python3-pyelftools
+        sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3 python3-setuptools python3-pyelftools rsync swig unzip zlib1g-dev file wget curl ca-certificates patch perl tar xz-utils zstd libelf-dev device-tree-compiler jq
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
@@ -102,20 +129,23 @@ jobs:
       working-directory: /workdir
       run: |
         df -hT $PWD
-        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        git init openwrt
+        git -C openwrt remote add origin "$REPO_URL"
+        git -C openwrt fetch --depth 1 origin "${{ needs.source.outputs.commit }}"
+        git -C openwrt checkout --detach FETCH_HEAD
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: Load custom feeds
       run: |
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        if [ -f "$FEEDS_CONF" ]; then cp "$FEEDS_CONF" openwrt/feeds.conf.default; fi
         chmod +x $DIY_P1_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
 
     - name: Load custom configuration
       run: |
-        [ -e files ] && mv files openwrt/files
-        [ -e config/${{ matrix.target.config }} ] && mv config/${{ matrix.target.config }} openwrt/.config
+        if [ -d files ]; then mkdir -p openwrt/files; cp -a files/. openwrt/files/; fi
+        cp "config/${{ matrix.target.config }}" openwrt/.config
         chmod +x $DIY_P2_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
@@ -152,16 +182,38 @@ jobs:
         for package in xray-core v2ray-geoip v2ray-geosite; do
           grep -qx "CONFIG_PACKAGE_${package}=y" .config
         done
-        make download -j$(nproc)
-        find dl -size -1024c -exec ls -l {} \;
-        find dl -size -1024c -exec rm -f {} \;
+        make download -j"$BUILD_JOBS"
+        # OpenWrt verifies source checksums; small archives may be legitimate.
+
+    - name: Record build inputs
+      run: |
+        mkdir -p build-info
+        git rev-parse HEAD > build-info/configuration.commit
+        git -C openwrt rev-parse HEAD > build-info/immortalwrt.commit
+        git -C openwrt log -1 --format=%s > build-info/immortalwrt.subject
+        git -C openwrt log -1 --format=%cd --date=iso-strict > build-info/immortalwrt.date
+        cp openwrt/.config build-info/config
+        for directory in openwrt/feeds/* openwrt/feeds/packages/lang/golang openwrt/package/luci-theme-aurora; do
+          if [ -d "$directory/.git" ] || [ -f "$directory/.git" ]; then
+            printf '%s %s\n' "$directory" "$(git -C "$directory" rev-parse HEAD)" >> build-info/dependencies.txt
+          fi
+        done
+        cp openwrt/feeds.conf.default build-info/feeds.conf.default
+        (cd "$RUNNER_TEMP" && sha256sum geoip.dat geosite.dat) > build-info/rules.sha256
+
+    - name: Upload build inputs
+      uses: actions/upload-artifact@v6
+      with:
+        name: Build_inputs_${{ matrix.target.arch }}
+        path: build-info
+        if-no-files-found: error
 
     - name: Compile the firmware
       id: compile
       run: |
         cd openwrt
-        echo -e "$(nproc) thread compile"
-        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "$BUILD_JOBS thread compile"
+        make -j"$BUILD_JOBS" || make -j1 V=s
         echo "status=success" >> $GITHUB_OUTPUT
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
@@ -172,7 +224,7 @@ jobs:
       run: df -hT
 
     - name: Upload bin directory
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@v6
       if: env.UPLOAD_BIN_DIR == 'true' && success()
       with:
         name: OpenWrt_bin_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
@@ -193,44 +245,82 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware directory
-      uses: actions/upload-artifact@main
-      if: success()
+      uses: actions/upload-artifact@v6
+      if: env.UPLOAD_FIRMWARE == 'true' && success()
       with:
+        if-no-files-found: error
         name: OpenWrt_firmware_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
     - name: TG Message (success)
+      continue-on-error: true
+      env:
+        TGID: ${{ secrets.TGID }}
+        TG_TOKEN: ${{ secrets.TG_TOKEN }}
+        PUSH_PLUS_TOKEN: ${{ secrets.PUSH_PLUS_TOKEN }}
       if: env.SERVERCHAN_SCKEY == 'true' && success()
       run: |
-        curl -k --data chat_id=${{ secrets.TGID }} --data "text=✅ 我亲爱的主人您要编译的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件编译成功！" "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage"
+        [ -n "$TG_TOKEN" ] || exit 0
+        curl --fail-with-body --connect-timeout 10 --max-time 30 --silent --show-error --data-urlencode "chat_id=$TGID" --data-urlencode "text=✅ 我亲爱的主人您要编译的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件编译成功！" "https://api.telegram.org/bot$TG_TOKEN/sendMessage" -o "$RUNNER_TEMP/notification.json"
+        jq -e '.ok == true' "$RUNNER_TEMP/notification.json" >/dev/null
 
     - name: PUSHPLUS Message (success)
+      continue-on-error: true
+      env:
+        TGID: ${{ secrets.TGID }}
+        TG_TOKEN: ${{ secrets.TG_TOKEN }}
+        PUSH_PLUS_TOKEN: ${{ secrets.PUSH_PLUS_TOKEN }}
       if: env.SERVERCHAN_SCKEY == 'true' && success()
       run: |
-        curl -k --data token="${{ secrets.PUSH_PLUS_TOKEN }}" --data title="✅ 恭喜主人${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件编译成功！" --data "content=✅ 我亲爱的主人您要编译的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件成功完成了！" "http://www.pushplus.plus/send"
+        [ -n "$PUSH_PLUS_TOKEN" ] || exit 0
+        curl --fail-with-body --connect-timeout 10 --max-time 30 --silent --show-error --data-urlencode token="$PUSH_PLUS_TOKEN" --data-urlencode title="✅ 恭喜主人${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件编译成功！" --data-urlencode "content=✅ 我亲爱的主人您要编译的${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M")固件成功完成了！" "https://www.pushplus.plus/send" -o "$RUNNER_TEMP/notification.json"
+        jq -e '.code == 200' "$RUNNER_TEMP/notification.json" >/dev/null
 
     - name: TG Message (fail)
+      continue-on-error: true
+      env:
+        TGID: ${{ secrets.TGID }}
+        TG_TOKEN: ${{ secrets.TG_TOKEN }}
+        PUSH_PLUS_TOKEN: ${{ secrets.PUSH_PLUS_TOKEN }}
       if: env.SERVERCHAN_SCKEY == 'true' && failure()
       run: |
-        curl -k --data chat_id=${{ secrets.TGID }} --data "text=❌ 主人：${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M") 编译失败，请检查日志！" "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage"
+        [ -n "$TG_TOKEN" ] || exit 0
+        curl --fail-with-body --connect-timeout 10 --max-time 30 --silent --show-error --data-urlencode "chat_id=$TGID" --data-urlencode "text=❌ 主人：${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M") 编译失败，请检查日志！" "https://api.telegram.org/bot$TG_TOKEN/sendMessage" -o "$RUNNER_TEMP/notification.json"
+        jq -e '.ok == true' "$RUNNER_TEMP/notification.json" >/dev/null
 
     - name: PUSHPLUS Message (fail)
+      continue-on-error: true
+      env:
+        TGID: ${{ secrets.TGID }}
+        TG_TOKEN: ${{ secrets.TG_TOKEN }}
+        PUSH_PLUS_TOKEN: ${{ secrets.PUSH_PLUS_TOKEN }}
       if: env.SERVERCHAN_SCKEY == 'true' && failure()
       run: |
-        curl -k --data token="${{ secrets.PUSH_PLUS_TOKEN }}" --data title="❌ 主人：${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M") 编译失败" --data "content=❌ 主人：${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M") 编译失败，请检查日志！" "http://www.pushplus.plus/send"
+        [ -n "$PUSH_PLUS_TOKEN" ] || exit 0
+        curl --fail-with-body --connect-timeout 10 --max-time 30 --silent --show-error --data-urlencode token="$PUSH_PLUS_TOKEN" --data-urlencode title="❌ 主人：${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M") 编译失败" --data-urlencode "content=❌ 主人：${{ matrix.target.tag }}-$(date +"%Y.%m.%d-%H%M") 编译失败，请检查日志！" "https://www.pushplus.plus/send" -o "$RUNNER_TEMP/notification.json"
+        jq -e '.code == 200' "$RUNNER_TEMP/notification.json" >/dev/null
 
   publish:
+    permissions:
+      contents: write
+      actions: write
     name: Publish combined firmware release
     needs: build
     runs-on: ubuntu-22.04
 
     steps:
     - name: Download all firmware artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         pattern: OpenWrt_firmware_*
         path: firmware
         merge-multiple: true
+
+    - name: Download build inputs
+      uses: actions/download-artifact@v7
+      with:
+        pattern: Build_inputs_*
+        path: build-inputs
 
     - name: Generate combined release notes
       id: tag
@@ -238,9 +328,9 @@ jobs:
         BUILD_TIME=$(date +'%Y-%m-%d %H:%M:%S')
         RELEASE_TAG="ImmortalWrt_${{ github.run_number }}.${{ github.run_attempt }}_$(date +'%Y.%m.%d-%H%M')"
         echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-        git clone --depth 1 --branch "$REPO_BRANCH" "$REPO_URL" upstream
-        UPSTREAM_SUBJECT=$(git -C upstream log -1 --format=%s)
-        UPSTREAM_DATE=$(git -C upstream log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S')
+        UPSTREAM_SUBJECT=$(cat build-inputs/Build_inputs_x86_64/immortalwrt.subject)
+        UPSTREAM_DATE=$(cat build-inputs/Build_inputs_x86_64/immortalwrt.date)
+        UPSTREAM_COMMIT=$(cat build-inputs/Build_inputs_x86_64/immortalwrt.commit)
         {
           echo "# 🎉 ImmortalWrt 固件 ${RELEASE_TAG}"
           echo ""
@@ -250,6 +340,7 @@ jobs:
           echo "| 构建时间 | $BUILD_TIME |"
           echo "| 构建号 | #${{ github.run_number }} |"
           echo "| 上游更新 | $UPSTREAM_SUBJECT |"
+          echo "| 上游提交 | $UPSTREAM_COMMIT |"
           echo "| 上游时间 | $UPSTREAM_DATE |"
           echo ""
           echo "## 📥 镜像格式"
@@ -261,21 +352,25 @@ jobs:
           echo ""
           echo "> 同一次构建的所有架构镜像统一发布"
         } > release.txt
+        tar -czf build-inputs.tar.gz build-inputs
 
     - name: Upload all firmware to one release
       uses: softprops/action-gh-release@v3
       if: env.UPLOAD_RELEASE == 'true' && success()
       env:
-        GITHUB_TOKEN: ${{ secrets.PAT }}
+        GITHUB_TOKEN: ${{ secrets.PAT || github.token }}
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
-        files: firmware/*
+        files: |
+          firmware/*
+          build-inputs.tar.gz
+        fail_on_unmatched_files: true
 
     - name: Delete workflow runs
       uses: Mattraks/delete-workflow-runs@v2.1.0
       env:
-        GITHUB_TOKEN: ${{ secrets.PAT }}
+        GITHUB_TOKEN: ${{ secrets.PAT || github.token }}
       with:
         retain_days: 1
         keep_minimum_runs: 3
