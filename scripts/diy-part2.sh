@@ -10,8 +10,10 @@
 # See /LICENSE for more information.
 #
 
+set -euo pipefail
+
 #默认主题
- WRT_THEME=aurora
+WRT_THEME=aurora
 #默认主机名
 # WRT_NAME=Kxhubs
 #默认地址
@@ -27,18 +29,8 @@ if [ ! -d "$AURORA_DIR" ]; then
   git clone --depth 1 https://github.com/eamonxg/luci-theme-aurora.git "$AURORA_DIR"
 fi
 
-case "$REPO_BRANCH" in
-  openwrt-[0-9]*.[0-9]*|immortalwrt-[0-9]*.[0-9]*)
-    OPENWRT_OFFICIAL_REPO="https://downloads.openwrt.org/releases/${REPO_BRANCH#*-}"
-    ;;
-  *)
-    OPENWRT_OFFICIAL_REPO="https://downloads.openwrt.org/snapshots"
-    ;;
-esac
-
-# Force generated APK/OPKG package feeds to use the official OpenWrt server.
+# Keep the upstream ImmortalWrt repository template and signing keys.
 sed -i '/^CONFIG_VERSION_REPO=/d' .config
-echo "CONFIG_VERSION_REPO=\"$OPENWRT_OFFICIAL_REPO\"" >> .config
 
 # Source-only feeds have no hosted APK index; keep them out of runtime repositories.
 for SOURCE_ONLY_FEED in passwall_packages kenzo small bandix_core bandix_luci video; do
@@ -47,13 +39,16 @@ for SOURCE_ONLY_FEED in passwall_packages kenzo small bandix_core bandix_luci vi
 done
 
 #修改默认主题
-sed -i "s/luci-theme-bootstrap/luci-theme-$WRT_THEME/g" "$(find ./feeds/luci/collections/ -type f -name "Makefile")"
+sed -i "s/luci-theme-bootstrap/luci-theme-$WRT_THEME/g" ./feeds/luci/collections/luci/Makefile
+
+# 设置实际 LAN 默认地址，同时更新刷机提示。
+sed -i "s/192\.168\.1\.1/$WRT_IP/g" "$CFG_FILE"
 
 #修改immortalwrt.lan关联IP
-sed -i "s/192\.168\.[0-9]*\.[0-9]*/$WRT_IP/g" "$(find ./feeds/luci/modules/luci-mod-system/ -type f -name "flash.js")"
+find ./feeds/luci/modules/luci-mod-system/ -type f -name flash.js -exec sed -i "s/192\.168\.[0-9]*\.[0-9]*/$WRT_IP/g" {} +
 
 #添加编译日期标识
-sed -i "s/(\(luciversion || ''\))/(\1) + (' \/ $WRT_MARK-$WRT_DATE')/g" "$(find ./feeds/luci/modules/luci-mod-status/ -type f -name "10_system.js")"
+sed -i "s/(\(luciversion || ''\))/(\1) + (' \/ $WRT_MARK-$WRT_DATE')/g" ./feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js
 
 #修改默认主机名
 # sed -i "s/hostname='.*'/hostname='$WRT_NAME'/g" $CFG_FILE
