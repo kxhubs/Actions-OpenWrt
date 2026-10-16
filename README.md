@@ -44,11 +44,39 @@ A template for building OpenWrt with GitHub Actions
 - 固件不包含自动扩容脚本，首次启动不会自动修改磁盘分区。
 - 保留 ImmortalWrt 自带软件源及签名校验。源码专用 feeds 不写入运行时软件源。
   自编译固件安装额外包时仍需确认版本、架构及内核 ABI 匹配。
-- 同一次构建的两个架构使用同一个上游提交。`Build_inputs_*` 产物记录最终配置、
-  上游/feeds/Go/主题提交及规则文件校验值，发布时附带 `build-inputs.tar.gz`。
-  第三方 feeds 仍跟随分支更新；这些记录用于追踪差异，不代表已经完成离线可复现构建。
+- `config/build-sources.json` 集中声明上游、全部 feeds、Go 和主题的仓库及分支。
+  构建开始时用 `git ls-remote` 解析一次提交，生成 `Source_lock` 产物；两个架构
+  均按其中的 SHA 获取源码。`Build_inputs_*` 记录版本清单、最终配置及规则文件校验值，
+  发布时附带 `build-inputs.tar.gz`。规则文件仍取下载时的最新版，尚非离线可复现构建。
 - 编译并行度依据 CPU 和可用内存选择；失败后用单线程详细输出诊断。
   通知使用 HTTPS、验证 API 返回值，缺少通知凭据时跳过，通知失败不影响固件构建。
+
+### 构建加速与工作流
+
+- `Repository checks` 在 push 和 PR 时运行脚本语法、隔离回归测试及 actionlint；
+  固件工作流也先执行相同检查，通过后才启动耗时构建。
+- 手动运行 `ImmortalWrt Builder` 时，`target` 可选 `both`、`R4S`、`x86_64`。
+  单架构构建只发布该架构；默认仍编译并发布两个架构。`upload_bin` 默认关闭，
+  需要全部软件包及原始 bin 输出时再开启。刷机镜像和构建记录始终保留。
+- 同一分支、同一目标的构建排队执行，不中断正在运行的任务；GitHub concurrency
+  只保留一个等待任务，新请求会替换旧的等待任务。重复请求不会同时占用编译资源。
+- C/C++ 使用 OpenWrt 自带的 ccache，Go 使用独立构建缓存，Rust 使用 sccache。
+  编译缓存按架构、最终配置、工具链目录、宿主 GCC、Go 和 Rust 配方隔离，
+  不缓存 `build_dir` 或 `staging_dir`。首次构建需填充缓存，后续收益取决于命中率。
+- 每个架构持久化上限：ccache 768 MiB、Go 256 MiB、sccache 128 MiB、下载目录
+  1024 MiB。编译结束后按最近访问时间裁剪；Go 模块下载目录作为整体淘汰，避免半份模块。
+  上限约束保存的缓存，不限制编译过程的峰值磁盘占用。GitHub 按仓库配额自动淘汰旧缓存。
+- 缓存恢复后仍由 OpenWrt 校验下载文件。固件使用失败时的单线程诊断重试，摘要记录
+  重试、编译秒数、缓存统计和磁盘余量，便于对比优化前后耗时。
+- 镜像通常已经压缩，artifact 不再重复压缩；固件和可选 bin 产物保留 7 天，
+  Release 产物不受此期限影响。当前先保留完整磁盘清理，收集磁盘余量后再决定缩减范围。
+- `Update Checker` 每天北京时间 **11:17** 检查上游、feeds、Go 和主题；GitHub 定时任务
+  可能延迟。输入版本或本仓库提交有变化时触发构建，并传递同一份版本清单。
+  仅在触发 API 成功后记录该输入已派发；构建失败可手动重新运行固件工作流。
+  此检查不监控 GeoIP/Geosite 的单独更新，需要规则更新时可手动构建。
+
+构建工具版本及 SHA-256 固定在 `scripts/ci-tools.sh`。默认保留所有现有插件、
+1 GiB 根分区，不添加自动扩容；轻量固件配置和减少磁盘清理可在测量后另行调整。
 
 ### 路由器配置更新
 
@@ -76,5 +104,13 @@ bash -n scripts/diy-part2.sh
 ```
 
 安装 actionlint 后运行 `actionlint -shellcheck= -pyflakes=` 校验工作流。
+也可使用与 CI 相同的完整检查入口：
+
+```sh
+bash scripts/ci-tools.sh lint
+PATH="${RUNNER_TEMP:-/tmp}/openwrt-ci-tools:$PATH" bash scripts/check.sh
+```
+
 隔离测试覆盖下载、校验、备份和重启失败，以及主题定制。
+新增测试覆盖版本清单校验、精确提交检出、配置保留、缓存隔离和淘汰。
 完整固件编译及刷机验证仍需在 GitHub Actions 和实际设备上执行。

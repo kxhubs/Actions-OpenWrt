@@ -12,48 +12,55 @@
 
 name: Update Checker
 
-env:
-  REPO_URL: https://github.com/immortalwrt/immortalwrt
-  REPO_BRANCH: openwrt-25.12
-
 on:
   workflow_dispatch:
   schedule:
-    - cron: 0 */18 * * *
+    # Daily at 11:17 Asia/Shanghai; avoid the busy top of the hour.
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-checker
+  cancel-in-progress: false
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
 
     steps:
 
-    - name: Get Commit Hash
-      id: getHash
+    - uses: actions/checkout@v6
+
+    - name: Resolve upstream, feeds, Go and theme versions
+      id: inputs
       run: |
-        git clone --depth 1 $REPO_URL -b $REPO_BRANCH .
-        echo "commitHash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+        fingerprint=$(python3 scripts/build_inputs.py resolve --output source-lock.json)
+        echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
 
-    - name: Compare Commit Hash
-      id: cacheHash
-      uses: actions/cache@v5
+    - name: Check whether these inputs were already dispatched
+      id: previous
+      uses: actions/cache/restore@v5
       with:
-        path: .commitHash
-        key: commitHash_${{ steps.getHash.outputs.commitHash }}
+        path: .dispatched-inputs
+        key: dispatched-v2-${{ github.sha }}-${{ steps.inputs.outputs.fingerprint }}
 
-    - name: Save New Commit Hash
-      if: steps.cacheHash.outputs.cache-hit != 'true'
+    - name: Trigger build with the exact resolved inputs
+      if: steps.previous.outputs.cache-hit != 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
-        echo ${{ steps.getHash.outputs.commitHash }} | tee .commitHash
+        jq -n --slurpfile lock source-lock.json \
+          '{event_type:"Source Code Update",client_payload:{lock:$lock[0]}}' > "$RUNNER_TEMP/dispatch.json"
+        gh api --method POST "repos/$GITHUB_REPOSITORY/dispatches" --input "$RUNNER_TEMP/dispatch.json"
+        cp source-lock.json .dispatched-inputs
 
-    - name: Trigger build
-      if: steps.cacheHash.outputs.cache-hit != 'true'
-      uses: peter-evans/repository-dispatch@v3
+    # Record only accepted dispatches; a failed API call must not suppress a retry.
+    - name: Remember dispatched inputs
+      if: steps.previous.outputs.cache-hit != 'true' && success()
+      uses: actions/cache/save@v5
       with:
-        token: ${{ github.token }}
-        event-type: Source Code Update
-
-    - name: Delete workflow runs
-      uses: Mattraks/delete-workflow-runs@v2
-      with:
-        retain_days: 0
-        keep_minimum_runs: 2
+        path: .dispatched-inputs
+        key: ${{ steps.previous.outputs.cache-primary-key }}

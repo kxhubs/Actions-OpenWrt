@@ -26,7 +26,11 @@ CFG_FILE="./package/base-files/files/bin/config_generate"
 # Add the standalone LuCI theme package before make defconfig.
 AURORA_DIR="package/luci-theme-aurora"
 if [ ! -d "$AURORA_DIR" ]; then
-  git clone --depth 1 https://github.com/eamonxg/luci-theme-aurora.git "$AURORA_DIR"
+  if [ -n "${BUILD_INPUTS_LOCK:-}" ]; then
+    python3 "$GITHUB_WORKSPACE/scripts/build_inputs.py" checkout --lock "$BUILD_INPUTS_LOCK" theme "$AURORA_DIR"
+  else
+    git clone --depth 1 https://github.com/eamonxg/luci-theme-aurora.git "$AURORA_DIR"
+  fi
 fi
 
 # Keep the upstream ImmortalWrt repository template and signing keys.

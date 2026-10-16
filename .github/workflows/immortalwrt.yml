@@ -23,44 +23,74 @@ on:
         description: 'SSH connection to Actions'
         required: false
         default: 'false'
+      target:
+        description: 'Build architectures'
+        type: choice
+        options: [both, R4S, x86_64]
+        default: both
+      upload_bin:
+        description: 'Also upload all packages and intermediate bin outputs'
+        type: boolean
+        default: false
+
+# Queue overlapping builds; never discard hours of work already in progress.
+concurrency:
+  group: firmware-${{ github.ref }}-${{ inputs.target || 'both' }}
+  cancel-in-progress: false
 
 env:
-  REPO_URL: https://github.com/immortalwrt/immortalwrt
-  REPO_BRANCH: openwrt-25.12
-  FEEDS_CONF: feeds.conf.default
   DIY_P1_SH: scripts/diy-part1.sh
   DIY_P2_SH: scripts/diy-part2.sh
-  UPLOAD_BIN_DIR: true
+  UPLOAD_BIN_DIR: ${{ inputs.upload_bin && 'true' || 'false' }}
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
   SERVERCHAN_SCKEY: true
   TZ: Asia/Shanghai
+  BUILD_INPUTS_LOCK: ${{ github.workspace }}/source-lock.json
+  CCACHE_MAXSIZE: 768M
+  SCCACHE_CACHE_SIZE: 128M
+  SCCACHE_DIR: /workdir/cache/sccache
 
 permissions:
   contents: read
 
 jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
   source:
+    needs: checks
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     outputs:
-      commit: ${{ steps.resolve.outputs.commit }}
+      fingerprint: ${{ steps.resolve.outputs.fingerprint }}
+      matrix: ${{ steps.resolve.outputs.matrix }}
     steps:
-    - name: Resolve upstream once for both architectures
+    - uses: actions/checkout@v6
+    - name: Resolve source and dependency versions once
       id: resolve
+      env:
+        TARGET: ${{ inputs.target || 'both' }}
       run: |
-        commit=$(git ls-remote "$REPO_URL" "refs/heads/$REPO_BRANCH" | awk '{print $1}')
-        [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
-        echo "commit=$commit" >> "$GITHUB_OUTPUT"
+        fingerprint=$(python3 scripts/build_inputs.py resolve --event "$GITHUB_EVENT_PATH" --output "$BUILD_INPUTS_LOCK")
+        echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+        case "$TARGET" in both|R4S|x86_64) ;; *) echo 'Unsupported build target' >&2; exit 1 ;; esac
+        matrix=$(jq -cn --arg target "$TARGET" '{target: [{arch:"R4S",config:"immortalwrt_R4S",tag:"immortalwrt_R4S"},{arch:"x86_64",config:"immortalwrt_x64",tag:"immortalwrt_x64"}] | map(select($target == "both" or .arch == $target))}')
+        echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+    - name: Share locked build inputs
+      uses: actions/upload-artifact@v6
+      with:
+        name: Source_lock
+        path: source-lock.json
+        if-no-files-found: error
 
   build:
     needs: source
     runs-on: ubuntu-22.04
+    timeout-minutes: 350
     strategy:
       fail-fast: false
-      matrix:
-        target:
-          - { arch: R4S, config: immortalwrt_R4S, tag: immortalwrt_R4S }
-          - { arch: x86_64, config: immortalwrt_x64, tag: immortalwrt_x64 }
+      matrix: ${{ fromJSON(needs.source.outputs.matrix) }}
 
     steps:
 
@@ -76,6 +106,14 @@ jobs:
 
     - name: Checkout
       uses: actions/checkout@v6
+
+    - name: Download locked build inputs
+      uses: actions/download-artifact@v7
+      with:
+        name: Source_lock
+
+    - name: Install pinned Rust cache tool
+      run: bash scripts/ci-tools.sh build
 
     - name: Check build resources
       run: |
@@ -125,19 +163,14 @@ jobs:
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
 
-    - name: Clone source code
-      working-directory: /workdir
+    - name: Clone source code at locked commit
       run: |
-        df -hT $PWD
-        git init openwrt
-        git -C openwrt remote add origin "$REPO_URL"
-        git -C openwrt fetch --depth 1 origin "${{ needs.source.outputs.commit }}"
-        git -C openwrt checkout --detach FETCH_HEAD
-        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+        df -hT /workdir
+        python3 scripts/build_inputs.py checkout --lock "$BUILD_INPUTS_LOCK" immortalwrt /workdir/openwrt
+        ln -sf /workdir/openwrt "$GITHUB_WORKSPACE/openwrt"
 
     - name: Load custom feeds
       run: |
-        if [ -f "$FEEDS_CONF" ]; then cp "$FEEDS_CONF" openwrt/feeds.conf.default; fi
         chmod +x $DIY_P1_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
@@ -171,17 +204,46 @@ jobs:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
-    - name: Download package
-      id: package
+    - name: Configure compiler caches and resolve configuration
+      id: cache_config
       run: |
+        python3 scripts/ci_cache.py configure --root /workdir/openwrt
         cd openwrt
         make defconfig
+        for setting in CONFIG_CCACHE=y CONFIG_RUST_SCCACHE=y; do grep -qx "$setting" .config; done
         xray_version=$(sed -n 's/^PKG_VERSION:=//p' package/feeds/passwall_packages/xray-core/Makefile)
         echo "Xray-core source version: $xray_version"
         dpkg --compare-versions "$xray_version" ge 26.9.30
         for package in xray-core v2ray-geoip v2ray-geosite; do
           grep -qx "CONFIG_PACKAGE_${package}=y" .config
         done
+        cd "$GITHUB_WORKSPACE"
+        scope=$(python3 scripts/ci_cache.py scope --root /workdir/openwrt --lock "$BUILD_INPUTS_LOCK")
+        echo "scope=$scope" >> "$GITHUB_OUTPUT"
+
+    - name: Restore download cache
+      id: download_cache
+      continue-on-error: true
+      uses: actions/cache/restore@v5
+      with:
+        path: /workdir/openwrt/dl
+        key: downloads-v1-${{ runner.os }}-${{ matrix.target.arch }}-${{ needs.source.outputs.fingerprint }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          downloads-v1-${{ runner.os }}-${{ matrix.target.arch }}-
+
+    - name: Restore compiler caches
+      id: compiler_cache
+      continue-on-error: true
+      uses: actions/cache/restore@v5
+      with:
+        path: /workdir/cache
+        key: compilers-v1-${{ runner.os }}-ubuntu22-${{ matrix.target.arch }}-${{ steps.cache_config.outputs.scope }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          compilers-v1-${{ runner.os }}-ubuntu22-${{ matrix.target.arch }}-${{ steps.cache_config.outputs.scope }}-
+
+    - name: Download package
+      run: |
+        cd openwrt
         make download -j"$BUILD_JOBS"
         # OpenWrt verifies source checksums; small archives may be legitimate.
 
@@ -193,6 +255,7 @@ jobs:
         git -C openwrt log -1 --format=%s > build-info/immortalwrt.subject
         git -C openwrt log -1 --format=%cd --date=iso-strict > build-info/immortalwrt.date
         cp openwrt/.config build-info/config
+        cp "$BUILD_INPUTS_LOCK" build-info/source-lock.json
         for directory in openwrt/feeds/* openwrt/feeds/packages/lang/golang openwrt/package/luci-theme-aurora; do
           if [ -d "$directory/.git" ] || [ -f "$directory/.git" ]; then
             printf '%s %s\n' "$directory" "$(git -C "$directory" rev-parse HEAD)" >> build-info/dependencies.txt
@@ -212,8 +275,14 @@ jobs:
       id: compile
       run: |
         cd openwrt
+        started=$SECONDS
         echo "$BUILD_JOBS thread compile"
-        make -j"$BUILD_JOBS" || make -j1 V=s
+        if ! make -j"$BUILD_JOBS"; then
+          echo '::warning::Parallel build failed; retrying with one job for diagnostics'
+          echo 'Diagnostic retry: single thread' >> "$GITHUB_STEP_SUMMARY"
+          make -j1 V=s
+        fi
+        echo "Compile duration: $((SECONDS - started)) seconds; jobs: $BUILD_JOBS" >> "$GITHUB_STEP_SUMMARY"
         echo "status=success" >> $GITHUB_OUTPUT
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
@@ -221,7 +290,40 @@ jobs:
 
     - name: Check space usage
       if: (!cancelled())
-      run: df -hT
+      run: |
+        df -hT
+        df -hT /workdir >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Report and bound caches
+      id: cache_finish
+      continue-on-error: true
+      if: success()
+      run: |
+        {
+          echo '### Compiler cache statistics'
+          echo "Download cache: ${{ steps.download_cache.outputs.cache-matched-key || 'cold' }}"
+          echo "Compiler cache: ${{ steps.compiler_cache.outputs.cache-matched-key || 'cold' }}"
+          CCACHE_DIR=/workdir/cache/ccache openwrt/staging_dir/host/bin/ccache --show-stats || echo 'ccache statistics unavailable'
+          sccache --show-stats || echo 'sccache statistics unavailable'
+        } >> "$GITHUB_STEP_SUMMARY"
+        sccache --stop-server || echo 'sccache server was not running'
+        python3 scripts/ci_cache.py trim --root /workdir/openwrt
+
+    - name: Save download cache
+      if: success() && steps.cache_finish.outcome == 'success' && steps.download_cache.outcome == 'success'
+      continue-on-error: true
+      uses: actions/cache/save@v5
+      with:
+        path: /workdir/openwrt/dl
+        key: ${{ steps.download_cache.outputs.cache-primary-key }}
+
+    - name: Save compiler caches
+      if: success() && steps.cache_finish.outcome == 'success' && steps.compiler_cache.outcome == 'success'
+      continue-on-error: true
+      uses: actions/cache/save@v5
+      with:
+        path: /workdir/cache
+        key: ${{ steps.compiler_cache.outputs.cache-primary-key }}
 
     - name: Upload bin directory
       uses: actions/upload-artifact@v6
@@ -229,6 +331,8 @@ jobs:
       with:
         name: OpenWrt_bin_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
+        compression-level: 0
+        retention-days: 7
 
     - name: Organize files
       id: organize
@@ -251,6 +355,8 @@ jobs:
         if-no-files-found: error
         name: OpenWrt_firmware_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
+        compression-level: 0
+        retention-days: 7
 
     - name: TG Message (success)
       continue-on-error: true
@@ -305,7 +411,7 @@ jobs:
       contents: write
       actions: write
     name: Publish combined firmware release
-    needs: build
+    needs: [source, build]
     runs-on: ubuntu-22.04
 
     steps:
@@ -324,19 +430,23 @@ jobs:
 
     - name: Generate combined release notes
       id: tag
+      env:
+        TARGET_MATRIX: ${{ needs.source.outputs.matrix }}
       run: |
         BUILD_TIME=$(date +'%Y-%m-%d %H:%M:%S')
         RELEASE_TAG="ImmortalWrt_${{ github.run_number }}.${{ github.run_attempt }}_$(date +'%Y.%m.%d-%H%M')"
         echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-        UPSTREAM_SUBJECT=$(cat build-inputs/Build_inputs_x86_64/immortalwrt.subject)
-        UPSTREAM_DATE=$(cat build-inputs/Build_inputs_x86_64/immortalwrt.date)
-        UPSTREAM_COMMIT=$(cat build-inputs/Build_inputs_x86_64/immortalwrt.commit)
+        FIRST_ARCH=$(jq -r '.target[0].arch' <<< "$TARGET_MATRIX")
+        ARCHITECTURES=$(jq -r '[.target[].arch] | join(" / ")' <<< "$TARGET_MATRIX")
+        UPSTREAM_SUBJECT=$(cat "build-inputs/Build_inputs_$FIRST_ARCH/immortalwrt.subject")
+        UPSTREAM_DATE=$(cat "build-inputs/Build_inputs_$FIRST_ARCH/immortalwrt.date")
+        UPSTREAM_COMMIT=$(cat "build-inputs/Build_inputs_$FIRST_ARCH/immortalwrt.commit")
         {
           echo "# 🎉 ImmortalWrt 固件 ${RELEASE_TAG}"
           echo ""
           echo "| 项目 | 详情 |"
           echo "|------|------|"
-          echo "| 架构 | R4S / x86_64 |"
+          echo "| 架构 | $ARCHITECTURES |"
           echo "| 构建时间 | $BUILD_TIME |"
           echo "| 构建号 | #${{ github.run_number }} |"
           echo "| 上游更新 | $UPSTREAM_SUBJECT |"
@@ -345,8 +455,8 @@ jobs:
           echo ""
           echo "## 📥 镜像格式"
           echo ""
-          echo "- x86_64 — combined EFI 镜像"
-          echo "- R4S — ext4 与 squashfs 镜像"
+          if [[ "$ARCHITECTURES" == *x86_64* ]]; then echo "- x86_64 — combined EFI 镜像"; fi
+          if [[ "$ARCHITECTURES" == *R4S* ]]; then echo "- R4S — ext4 与 squashfs 镜像"; fi
           echo ""
           echo "---"
           echo ""
