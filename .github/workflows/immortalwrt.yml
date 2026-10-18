@@ -78,7 +78,7 @@ jobs:
         matrix=$(jq -cn --arg target "$TARGET" '{target: [{arch:"R4S",config:"immortalwrt_R4S",tag:"immortalwrt_R4S"},{arch:"x86_64",config:"immortalwrt_x64",tag:"immortalwrt_x64"}] | map(select($target == "both" or .arch == $target))}')
         echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
     - name: Share locked build inputs
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v5
       with:
         name: Source_lock
         path: source-lock.json
@@ -95,6 +95,7 @@ jobs:
     steps:
 
     - name: Free Disk Space (Ubuntu)
+      if: ${{ env.LOCAL_ACT != 'true' }}
       uses: jlumbroso/free-disk-space@36e9a5af4eddb91fc11aec4c6f6f79b3cc0cb523 # main, pinned for reproducibility
       with:
         preinstalled-runtimes: true
@@ -108,7 +109,7 @@ jobs:
       uses: actions/checkout@v6
 
     - name: Download locked build inputs
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v6
       with:
         name: Source_lock
 
@@ -156,12 +157,24 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo -E apt-get -qq update
-        sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3 python3-setuptools python3-pyelftools rsync swig unzip zlib1g-dev file wget curl ca-certificates patch perl tar xz-utils zstd libelf-dev device-tree-compiler jq
+        build_packages=(build-essential clang flex bison g++ gawk gettext git libncurses-dev libssl-dev python3 python3-dev python3-setuptools python3-pyelftools rsync swig unzip zlib1g-dev file wget curl ca-certificates patch perl tar xz-utils zstd libelf-dev device-tree-compiler jq)
+        if [ "$(dpkg --print-architecture)" = amd64 ]; then
+          build_packages+=(gcc-multilib g++-multilib)
+        fi
+        sudo -E apt-get -qq install "${build_packages[@]}"
+        python3 -c 'import os, sysconfig; header = os.path.join(sysconfig.get_path("include"), "Python.h"); assert os.path.isfile(header), f"Missing Python development header: {header}"'
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
-        sudo timedatectl set-timezone "$TZ"
+        sudo ln -snf "/usr/share/zoneinfo/$TZ" /etc/localtime
+        echo "$TZ" | sudo tee /etc/timezone >/dev/null
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
+
+    - name: Check local Node runtime
+      if: ${{ env.LOCAL_ACT == 'true' }}
+      run: |
+        command -v node
+        node --version
 
     - name: Clone source code at locked commit
       run: |
@@ -265,7 +278,7 @@ jobs:
         (cd "$RUNNER_TEMP" && sha256sum geoip.dat geosite.dat) > build-info/rules.sha256
 
     - name: Upload build inputs
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v5
       with:
         name: Build_inputs_${{ matrix.target.arch }}
         path: build-info
@@ -326,7 +339,7 @@ jobs:
         key: ${{ steps.compiler_cache.outputs.cache-primary-key }}
 
     - name: Upload bin directory
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v5
       if: env.UPLOAD_BIN_DIR == 'true' && success()
       with:
         name: OpenWrt_bin_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
@@ -349,7 +362,7 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware directory
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v5
       if: env.UPLOAD_FIRMWARE == 'true' && success()
       with:
         if-no-files-found: error
@@ -416,14 +429,14 @@ jobs:
 
     steps:
     - name: Download all firmware artifacts
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v6
       with:
         pattern: OpenWrt_firmware_*
         path: firmware
         merge-multiple: true
 
     - name: Download build inputs
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v6
       with:
         pattern: Build_inputs_*
         path: build-inputs

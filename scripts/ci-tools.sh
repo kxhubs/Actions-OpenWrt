@@ -25,4 +25,11 @@ case "${1:-lint}" in
     ;;
   *) echo 'Usage: ci-tools.sh lint|build' >&2; exit 2 ;;
 esac
-if [ -n "${GITHUB_PATH:-}" ]; then echo "$destination" >> "$GITHUB_PATH"; fi
+if [ -n "${GITHUB_PATH:-}" ]; then
+  printf '%s\n' "$destination" >> "$GITHUB_PATH"
+  if [ "${LOCAL_ACT:-}" = true ]; then
+    # act may replace the amd64 Node path with an arm64 path after GITHUB_PATH changes.
+    node_executable=$(command -v node)
+    dirname "$node_executable" >> "$GITHUB_PATH"
+  fi
+fi
