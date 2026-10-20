@@ -50,6 +50,13 @@ A template for building OpenWrt with GitHub Actions
   发布时附带 `build-inputs.tar.gz`。规则文件仍取下载时的最新版，尚非离线可复现构建。
 - 编译并行度依据 CPU 和可用内存选择；失败后用单线程详细输出诊断。
   通知使用 HTTPS、验证 API 返回值，缺少通知凭据时跳过，通知失败不影响固件构建。
+- 编译线程数同时考虑 cgroup CPU/内存限额；预留 3 GiB 给系统及 runner，每个编译任务
+  按 3 GiB 预算，下载使用独立并行度。云端保留已有 swap，不足 2 GiB 时增加 4 GiB
+  临时 swap；本地 `act` 不修改宿主 swap。编译期间每分钟记录内存、swap、磁盘及
+  cgroup 内存事件，保存为 `Build_resources_*` 诊断产物。
+- 仅当 GitHub 明确标注 hosted runner 失联，且没有其他失败原因时，恢复工作流才会
+  自动重跑失败任务一次。编译错误不触发此类重试；重新上传的同名产物会替换旧版本，
+  避免重跑时出现 artifact 名称冲突。
 
 ### 构建加速与工作流
 
@@ -77,6 +84,21 @@ A template for building OpenWrt with GitHub Actions
 
 构建工具版本及 SHA-256 固定在 `scripts/ci-tools.sh`。默认保留所有现有插件、
 1 GiB 根分区，不添加自动扩容；轻量固件配置和减少磁盘清理可在测量后另行调整。
+
+### 本地 act 兼容
+
+GitHub 工作流使用 Node.js 24 的 `upload-artifact@v6` / `download-artifact@v7`。
+需要旧版 artifact Action 的本地 `act` 请生成兼容副本，避免修改云端工作流后重新出现
+Node.js 20 弃用警告：
+
+```sh
+python3 scripts/prepare_act.py
+act workflow_dispatch -W .act/workflows/immortalwrt.yml --input target=R4S --env LOCAL_ACT=true
+```
+
+副本位于被忽略的 `.act/workflows`，其中上传/下载 Action 使用 v5/v6。
+每次更新工作流后重新生成；继续使用本机已验证的容器镜像、架构及 artifact server 参数。
+此生成步骤与副本语法已验证，完整 `act` 固件编译仍取决于本机环境。
 
 ### 路由器配置更新
 

@@ -78,11 +78,12 @@ jobs:
         matrix=$(jq -cn --arg target "$TARGET" '{target: [{arch:"R4S",config:"immortalwrt_R4S",tag:"immortalwrt_R4S"},{arch:"x86_64",config:"immortalwrt_x64",tag:"immortalwrt_x64"}] | map(select($target == "both" or .arch == $target))}')
         echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
     - name: Share locked build inputs
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: Source_lock
         path: source-lock.json
         if-no-files-found: error
+        overwrite: true
 
   build:
     needs: source
@@ -103,18 +104,31 @@ jobs:
         dotnet: true
         haskell: true
         large-packages: true
-        swap-storage: true
+        swap-storage: false
 
     - name: Checkout
       uses: actions/checkout@v6
 
     - name: Download locked build inputs
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: Source_lock
 
     - name: Install pinned Rust cache tool
       run: bash scripts/ci-tools.sh build
+
+    - name: Keep swap available for compiler and linker peaks
+      if: ${{ env.LOCAL_ACT != 'true' }}
+      run: |
+        swap_kib=$(awk '/SwapTotal:/ {print $2}' /proc/meminfo)
+        if [ "$swap_kib" -lt 2097152 ]; then
+          swap_file="$RUNNER_TEMP/openwrt-swap"
+          sudo fallocate -l 4G "$swap_file"
+          sudo chmod 600 "$swap_file"
+          sudo mkswap "$swap_file"
+          sudo swapon "$swap_file"
+        fi
+        free -h
 
     - name: Check build resources
       run: |
@@ -122,11 +136,7 @@ jobs:
         free -h
         lsblk
         df -hT
-        jobs=$(nproc)
-        memory_jobs=$(awk '/MemAvailable:/ {print int($2 / 1572864)}' /proc/meminfo)
-        [ "$memory_jobs" -ge 1 ] || memory_jobs=1
-        [ "$jobs" -le "$memory_jobs" ] || jobs=$memory_jobs
-        echo "BUILD_JOBS=$jobs" >> "$GITHUB_ENV"
+        python3 scripts/build_resources.py jobs | tee -a "$GITHUB_ENV"
 
     - name: TG Message
       continue-on-error: true
@@ -257,7 +267,7 @@ jobs:
     - name: Download package
       run: |
         cd openwrt
-        make download -j"$BUILD_JOBS"
+        make download -j"$DOWNLOAD_JOBS"
         # OpenWrt verifies source checksums; small archives may be legitimate.
 
     - name: Record build inputs
@@ -278,15 +288,19 @@ jobs:
         (cd "$RUNNER_TEMP" && sha256sum geoip.dat geosite.dat) > build-info/rules.sha256
 
     - name: Upload build inputs
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: Build_inputs_${{ matrix.target.arch }}
         path: build-info
         if-no-files-found: error
+        overwrite: true
 
     - name: Compile the firmware
       id: compile
       run: |
+        python3 -u scripts/build_resources.py monitor --output "$GITHUB_WORKSPACE/build-resources.log" &
+        monitor_pid=$!
+        trap 'kill "$monitor_pid" 2>/dev/null || true; wait "$monitor_pid" 2>/dev/null || true' EXIT
         cd openwrt
         started=$SECONDS
         echo "$BUILD_JOBS thread compile"
@@ -306,6 +320,17 @@ jobs:
       run: |
         df -hT
         df -hT /workdir >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Preserve resource diagnostics
+      if: ${{ !cancelled() }}
+      continue-on-error: true
+      uses: actions/upload-artifact@v6
+      with:
+        name: Build_resources_${{ matrix.target.arch }}
+        path: build-resources.log
+        if-no-files-found: ignore
+        overwrite: true
+        retention-days: 7
 
     - name: Report and bound caches
       id: cache_finish
@@ -339,11 +364,12 @@ jobs:
         key: ${{ steps.compiler_cache.outputs.cache-primary-key }}
 
     - name: Upload bin directory
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       if: env.UPLOAD_BIN_DIR == 'true' && success()
       with:
         name: OpenWrt_bin_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
+        overwrite: true
         compression-level: 0
         retention-days: 7
 
@@ -362,12 +388,13 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware directory
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       if: env.UPLOAD_FIRMWARE == 'true' && success()
       with:
         if-no-files-found: error
         name: OpenWrt_firmware_${{ matrix.target.arch }}${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
+        overwrite: true
         compression-level: 0
         retention-days: 7
 
@@ -429,14 +456,14 @@ jobs:
 
     steps:
     - name: Download all firmware artifacts
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         pattern: OpenWrt_firmware_*
         path: firmware
         merge-multiple: true
 
     - name: Download build inputs
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         pattern: Build_inputs_*
         path: build-inputs
