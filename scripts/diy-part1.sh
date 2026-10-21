@@ -28,6 +28,16 @@ else
 fi
 
 ./scripts/feeds install -a
+# Argon 3 includes the configuration page and its translations in the theme.
+# The old standalone package owns the same files and prevents APK image assembly.
+# Remove its feed link so the selected translation comes from the theme.
+ARGON_THEME="feeds/kenzo/luci-theme-argon"
+if [ ! -f "$ARGON_THEME/root/usr/share/luci/menu.d/luci-app-argon-config.json" ] ||
+   ! grep -Eq '^LUCI_BASENAME:=argon-config$' "$ARGON_THEME/Makefile"; then
+  echo 'Argon theme no longer includes Argon Config; update the package selection.' >&2
+  exit 1
+fi
+./scripts/feeds uninstall luci-app-argon-config
 # clashoo also PROVIDES mihomo and triggers a recursive Kconfig dependency.
 # These configurations use mihomo directly; leave its alternate provider uninstalled.
 ./scripts/feeds uninstall clashoo
