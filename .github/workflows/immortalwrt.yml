@@ -494,9 +494,22 @@ jobs:
         echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
         FIRST_ARCH=$(jq -r '.target[0].arch' <<< "$TARGET_MATRIX")
         ARCHITECTURES=$(jq -r '[.target[].arch] | join(" / ")' <<< "$TARGET_MATRIX")
-        UPSTREAM_SUBJECT=$(cat "build-inputs/Build_inputs_$FIRST_ARCH/immortalwrt.subject")
-        UPSTREAM_DATE=$(cat "build-inputs/Build_inputs_$FIRST_ARCH/immortalwrt.date")
-        UPSTREAM_COMMIT=$(cat "build-inputs/Build_inputs_$FIRST_ARCH/immortalwrt.commit")
+        INPUTS_ARTIFACT="build-inputs/Build_inputs_$FIRST_ARCH"
+        if [ ! -d "$INPUTS_ARTIFACT" ]; then
+          echo "::error::Missing build inputs artifact directory: $INPUTS_ARTIFACT"
+          find build-inputs -maxdepth 4 -type f -print
+          exit 1
+        fi
+        SUBJECT_FILE=$(find "$INPUTS_ARTIFACT" -type f -name immortalwrt.subject -print -quit)
+        if [ -z "$SUBJECT_FILE" ]; then
+          echo "::error::Missing immortalwrt.subject in $INPUTS_ARTIFACT"
+          find build-inputs -maxdepth 4 -type f -print
+          exit 1
+        fi
+        INPUTS_DIR=$(dirname "$SUBJECT_FILE")
+        UPSTREAM_SUBJECT=$(cat "$INPUTS_DIR/immortalwrt.subject")
+        UPSTREAM_DATE=$(cat "$INPUTS_DIR/immortalwrt.date")
+        UPSTREAM_COMMIT=$(cat "$INPUTS_DIR/immortalwrt.commit")
         {
           echo "# 🎉 ImmortalWrt 固件 ${RELEASE_TAG}"
           echo ""
