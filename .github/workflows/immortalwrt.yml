@@ -297,6 +297,7 @@ jobs:
 
     - name: Compile the firmware
       id: compile
+      shell: bash
       run: |
         python3 -u scripts/build_resources.py monitor --output "$GITHUB_WORKSPACE/build-resources.log" &
         monitor_pid=$!
@@ -304,16 +305,31 @@ jobs:
         cd openwrt
         started=$SECONDS
         echo "$BUILD_JOBS thread compile"
-        if ! make -j"$BUILD_JOBS"; then
+        if ! make -j"$BUILD_JOBS" 2>&1 | tee "$GITHUB_WORKSPACE/build-compile.log"; then
           echo '::warning::Parallel build failed; retrying with one job for diagnostics'
           echo 'Diagnostic retry: single thread' >> "$GITHUB_STEP_SUMMARY"
-          make -j1 V=s
+          make -j1 V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build-compile.log"
         fi
         echo "Compile duration: $((SECONDS - started)) seconds; jobs: $BUILD_JOBS" >> "$GITHUB_STEP_SUMMARY"
         echo "status=success" >> $GITHUB_OUTPUT
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+    - name: Summarize compiler errors
+      if: ${{ failure() && steps.compile.outcome == 'failure' }}
+      run: python3 scripts/report_compile_failure.py build-compile.log
+
+    - name: Preserve compiler logs
+      if: ${{ !cancelled() && steps.compile.outcome != 'skipped' }}
+      continue-on-error: true
+      uses: actions/upload-artifact@v6
+      with:
+        name: Build_logs_${{ matrix.target.arch }}
+        path: build-compile.log
+        if-no-files-found: ignore
+        overwrite: true
+        retention-days: 7
 
     - name: Check space usage
       if: (!cancelled())
