@@ -54,6 +54,9 @@ A template for building OpenWrt with GitHub Actions
   稳定内核纳入的两份 Rockchip 补丁（`dev_err_probe` 与主平面/叠加平面注册）；将 SmartDNS 的 APK 版本
   `48.5-RC1` 转为 `48.5_rc1`，下载地址、源码校验值与编译版本字符串保持一致。
   修复仅针对已确认的版本；受影响配方或补丁发生变化时停止并提示检查。
+- Rust 1.96.0 的 LLVM 改为从校验过的 Rust 发布源码构建，避免依赖会被清理的
+  Rust CI 预编译文件。LLVM 仅构建 AArch64/X86 后端，链接并行度为 1，构建线程数
+  使用现有资源预算。先完成 C 工具链及 Rust 编译器验证，再构建固件包；首次构建更慢。
 - 编译线程数同时考虑 cgroup CPU/内存限额；预留 3 GiB 给系统及 runner，每个编译任务
   按 3 GiB 预算，下载使用独立并行度。云端保留已有 swap，不足 2 GiB 时增加 4 GiB
   临时 swap；本地 `act` 不修改宿主 swap。编译期间每分钟记录内存、swap、磁盘及

@@ -54,12 +54,38 @@ def fix_smartdns(root):
     print('SmartDNS: normalized APK version to 48.5_rc1, preserving Release48.5-RC1 sources')
 
 
+def fix_rust(root):
+    recipe = root / 'feeds/packages/lang/rust/Makefile'
+    if not recipe.is_file():
+        return
+    text = recipe.read_text()
+    if not re.search(r'^PKG_VERSION:=1\.96\.0$', text, re.M):
+        return
+    option = '--set=llvm.download-ci-llvm=true'
+    if option not in text:
+        return
+    if text.count(option) != 1:
+        raise ValueError(f'Rust LLVM configuration changed; review the recipe: {recipe}')
+    # Rust CI artifacts expire. Build the LLVM sources from the checksummed
+    # Rust release, with only the backends used by this repository and its hosts.
+    replacement = ' \\\n\t'.join([
+        '--set=llvm.download-ci-llvm=false',
+        '--set=llvm.targets="AArch64;X86"',
+        '--set=llvm.experimental-targets=',
+        '--set=llvm.link-jobs=1',
+        '--set=build.jobs=$(if $(BUILD_JOBS),$(BUILD_JOBS),2)',
+    ])
+    recipe.write_text(text.replace(option, replacement))
+    print('Rust 1.96.0: build LLVM from release sources instead of expired CI artifacts')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path.cwd())
     args = parser.parse_args()
     fix_rockchip(args.root)
     fix_smartdns(args.root)
+    fix_rust(args.root)
 
 
 if __name__ == '__main__':

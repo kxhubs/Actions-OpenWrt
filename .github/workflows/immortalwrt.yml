@@ -167,7 +167,7 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo -E apt-get -qq update
-        build_packages=(build-essential clang flex bison g++ gawk gettext git libncurses-dev libssl-dev python3 python3-dev python3-setuptools python3-pyelftools rsync swig unzip zlib1g-dev file wget curl ca-certificates patch perl tar xz-utils zstd libelf-dev device-tree-compiler jq)
+        build_packages=(build-essential clang cmake ninja-build flex bison g++ gawk gettext git libncurses-dev libssl-dev python3 python3-dev python3-setuptools python3-pyelftools rsync swig unzip zlib1g-dev file wget curl ca-certificates patch perl tar xz-utils zstd libelf-dev device-tree-compiler jq)
         if [ "$(dpkg --print-architecture)" = amd64 ]; then
           build_packages+=(gcc-multilib g++-multilib)
         fi
@@ -295,6 +295,24 @@ jobs:
         if-no-files-found: error
         overwrite: true
 
+    - name: Build and verify Rust compiler before firmware packages
+      id: rust
+      shell: bash
+      run: |
+        python3 -u scripts/build_resources.py monitor --output "$GITHUB_WORKSPACE/build-resources.log" &
+        monitor_pid=$!
+        trap 'kill "$monitor_pid" 2>/dev/null || true; wait "$monitor_pid" 2>/dev/null || true' EXIT
+        cd openwrt
+        for target in tools/install toolchain/install package/feeds/packages/rust/host/compile; do
+          echo "::group::Build $target"
+          make -j"$BUILD_JOBS" "$target" V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build-compile.log"
+          echo '::endgroup::'
+        done
+        rustc_bin=$(find staging_dir -path '*/host/bin/rustc' -print -quit)
+        test -x "$rustc_bin"
+        "$rustc_bin" --version | tee -a "$GITHUB_WORKSPACE/build-compile.log"
+        "$(dirname "$rustc_bin")/cargo" --version | tee -a "$GITHUB_WORKSPACE/build-compile.log"
+
     - name: Compile the firmware
       id: compile
       shell: bash
@@ -305,7 +323,7 @@ jobs:
         cd openwrt
         started=$SECONDS
         echo "$BUILD_JOBS thread compile"
-        if ! make -j"$BUILD_JOBS" 2>&1 | tee "$GITHUB_WORKSPACE/build-compile.log"; then
+        if ! make -j"$BUILD_JOBS" 2>&1 | tee -a "$GITHUB_WORKSPACE/build-compile.log"; then
           echo '::warning::Parallel build failed; retrying with one job for diagnostics'
           echo 'Diagnostic retry: single thread' >> "$GITHUB_STEP_SUMMARY"
           make -j1 V=s 2>&1 | tee -a "$GITHUB_WORKSPACE/build-compile.log"
@@ -317,11 +335,11 @@ jobs:
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
     - name: Summarize compiler errors
-      if: ${{ failure() && steps.compile.outcome == 'failure' }}
+      if: ${{ failure() && (steps.rust.outcome == 'failure' || steps.compile.outcome == 'failure') }}
       run: python3 scripts/report_compile_failure.py build-compile.log
 
     - name: Preserve compiler logs
-      if: ${{ !cancelled() && steps.compile.outcome != 'skipped' }}
+      if: ${{ !cancelled() && (steps.rust.outcome != 'skipped' || steps.compile.outcome != 'skipped') }}
       continue-on-error: true
       uses: actions/upload-artifact@v6
       with:

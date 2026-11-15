@@ -23,6 +23,44 @@ MAKE_VARS+= VER=$(PKG_VERSION)
 
 
 class BuildFixTests(unittest.TestCase):
+    def test_rust_builds_release_llvm_with_bounded_jobs_and_backends(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            recipe = root / 'feeds/packages/lang/rust/Makefile'
+            recipe.parent.mkdir(parents=True)
+            recipe.write_text('PKG_VERSION:=1.96.0\nPKG_HASH:=unchanged\n'
+                              'HOST_CONFIGURE_ARGS = --set=llvm.download-ci-llvm=true '
+                              '--target=aarch64-unknown-linux-musl\n')
+            fixes.fix_rust(root)
+            result = subprocess.run(['make', '--no-print-directory', '-f', str(recipe),
+                                     '-f', '-', 'BUILD_JOBS=3', 'print'], input='''
+print:
+	@printf '%s\\n' $(HOST_CONFIGURE_ARGS)
+''', capture_output=True, text=True, check=True)
+            args = result.stdout.splitlines()
+            self.assertIn('--set=llvm.download-ci-llvm=false', args)
+            self.assertIn('--set=llvm.targets=AArch64;X86', args)
+            self.assertIn('--set=llvm.experimental-targets=', args)
+            self.assertIn('--set=llvm.link-jobs=1', args)
+            self.assertIn('--set=build.jobs=3', args)
+            self.assertIn('--target=aarch64-unknown-linux-musl', args)
+            self.assertIn('PKG_HASH:=unchanged', recipe.read_text())
+            first = recipe.read_text()
+            fixes.fix_rust(root)
+            self.assertEqual(recipe.read_text(), first)
+
+    def test_rust_unknown_duplicate_setting_is_preserved_for_review(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            recipe = root / 'feeds/packages/lang/rust/Makefile'
+            recipe.parent.mkdir(parents=True)
+            original = ('PKG_VERSION:=1.96.0\nHOST_CONFIGURE_ARGS = '
+                        '--set=llvm.download-ci-llvm=true --set=llvm.download-ci-llvm=true\n')
+            recipe.write_text(original)
+            with self.assertRaisesRegex(ValueError, 'Rust LLVM configuration changed'):
+                fixes.fix_rust(root)
+            self.assertEqual(recipe.read_text(), original)
+
     def test_smartdns_metadata_changes_but_source_inputs_stay_identical(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
