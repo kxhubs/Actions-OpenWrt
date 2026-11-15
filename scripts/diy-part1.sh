@@ -27,6 +27,9 @@ else
   git clone --depth 1 https://github.com/sbwml/packages_lang_golang -b 27.x feeds/packages/lang/golang
 fi
 
+# Repair known upstream incompatibilities before installing feed packages.
+python3 "$(dirname "${BASH_SOURCE[0]}")/apply_build_fixes.py" --root .
+
 ./scripts/feeds install -a
 # Argon 3 includes the configuration page and its translations in the theme.
 # The old standalone package owns the same files and prevents APK image assembly.

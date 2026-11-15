@@ -21,6 +21,25 @@ class CompileFailureTests(unittest.TestCase):
         summary = error_summary(['error: ' + 'x' * 1000 + '\n'] * 10000)
         self.assertLessEqual(len(summary), 6000)
 
+    def test_shell_recipes_do_not_hide_actual_apk_failure(self):
+        command = ('for mod in /build/driver.ko; do if [ -e $mod ]; then cp $mod /out; '
+                   'else echo "ERROR: module is missing." >&2; exit 1; fi; done;\n')
+        summary = error_summary([command] * 100 + [
+            "ERROR: info field 'version' has invalid value: package version is invalid\n",
+            'make[3]: *** [smartdns-48.5-RC1-r2.apk] Error 99\n',
+        ])
+        self.assertIn('package version is invalid', summary)
+        self.assertIn('smartdns-48.5-RC1-r2.apk', summary)
+        self.assertNotIn('for mod', summary)
+
+    def test_patch_failure_names_are_preserved(self):
+        summary = error_summary(['Hunk #1 FAILED at 3271.\n',
+                                 '7 out of 7 hunks FAILED -- saving rejects\n',
+                                 'Patch failed! Please fix rockchip.patch!\n',
+                                 'make: *** [target/linux/compile] Error 2\n'])
+        self.assertIn('rockchip.patch', summary)
+        self.assertIn('Hunk #1 FAILED', summary)
+
     def test_escapes_log_text_as_annotation_data(self):
         value = annotation('error 100%\n::notice::example\r')
         self.assertNotIn('\n', value)

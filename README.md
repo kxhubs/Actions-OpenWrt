@@ -50,6 +50,10 @@ A template for building OpenWrt with GitHub Actions
   发布时附带 `build-inputs.tar.gz`。规则文件仍取下载时的最新版，尚非离线可复现构建。
 - 编译并行度依据 CPU 和可用内存选择；失败后用单线程详细输出诊断。
   通知使用 HTTPS、验证 API 返回值，缺少通知凭据时跳过，通知失败不影响固件构建。
+- feeds 安装前运行 `scripts/apply_build_fixes.py`：对 Linux 6.12.116 移除已由
+  稳定内核纳入的两份 Rockchip 补丁（`dev_err_probe` 与主平面/叠加平面注册）；将 SmartDNS 的 APK 版本
+  `48.5-RC1` 转为 `48.5_rc1`，下载地址、源码校验值与编译版本字符串保持一致。
+  修复仅针对已确认的版本；受影响配方或补丁发生变化时停止并提示检查。
 - 编译线程数同时考虑 cgroup CPU/内存限额；预留 3 GiB 给系统及 runner，每个编译任务
   按 3 GiB 预算，下载使用独立并行度。云端保留已有 swap，不足 2 GiB 时增加 4 GiB
   临时 swap；本地 `act` 不修改宿主 swap。编译期间每分钟记录内存、swap、磁盘及

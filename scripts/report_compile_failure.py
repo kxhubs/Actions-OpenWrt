@@ -5,8 +5,10 @@ from pathlib import Path
 import re
 import sys
 
-ERROR = re.compile(r'error:|fatal error|undefined reference|no such file|no space left|'
-                   r'\bkilled\b|\bError [0-9]+|FAILED:|cannot find|command not found', re.I)
+ERROR = re.compile(r'(?:^|\s)(?:error:|fatal error|undefined reference|no such file|'
+                   r'no space left|killed\b|Error [0-9]+|FAILED:|cannot find|'
+                   r'command not found)|^\s*(?:Patch failed!|Hunk #\d+ FAILED|'
+                   r'\d+ out of \d+ hunks? FAILED)', re.I)
 
 
 def error_summary(lines):
